@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
@@ -66,9 +67,6 @@ public class JwtUtil {
     /** Path to the private key file used for JWT signing. */
     private static final String PRIVATE_KEY_PATH = "keys/private.pem";
 
-    /** URL of the JWKS endpoint for retrieving public keys. */
-    private static final String JWKS_URL = "https://authz.integration.scotaccount.service.gov.scot/jwks.json";
-
     /** HTTP client for making requests to the JWKS endpoint. */
     private final RestTemplate restTemplate;
 
@@ -77,6 +75,10 @@ public class JwtUtil {
 
     /** Cache of public keys indexed by key ID for JWT verification. */
     private Map<String, PublicKey> publicKeyCache = new HashMap<>();
+
+    /** URL of the JWKS endpoint for retrieving public keys. */
+    @Value("${spring.security.oauth2.client.provider.scotaccount.jwk-set-uri}")
+    private String jwksUrl;
 
     /**
      * Constructs a new JwtUtil instance with a default RestTemplate.
@@ -120,7 +122,7 @@ public class JwtUtil {
             return publicKeyCache.get(keyId);
         }
 
-        ResponseEntity<Map> response = restTemplate.getForEntity(JWKS_URL, Map.class);
+        ResponseEntity<Map> response = restTemplate.getForEntity(jwksUrl, Map.class);
         List<Map<String, String>> keys = (List<Map<String, String>>) response.getBody().get("keys");
 
         for (Map<String, String> key : keys) {

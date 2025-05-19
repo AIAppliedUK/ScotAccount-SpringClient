@@ -99,17 +99,35 @@ public class LoginController implements AuthenticationSuccessHandler, Authentica
     public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response,
             Authentication authentication) throws IOException, ServletException {
         logger.info("Authentication successful for user: {}", authentication.getName());
+        logger.debug("Authentication details: {}", authentication);
+
+        if (!(authentication instanceof OAuth2AuthenticationToken)) {
+            logger.error("Authentication is not an OAuth2AuthenticationToken: {}", authentication.getClass().getName());
+            response.sendRedirect("/?error=true&message=Invalid authentication type");
+            return;
+        }
 
         OAuth2AuthenticationToken oauth2Auth = (OAuth2AuthenticationToken) authentication;
+        if (!(oauth2Auth.getPrincipal() instanceof OidcUser)) {
+            logger.error("Principal is not an OidcUser: {}", oauth2Auth.getPrincipal().getClass().getName());
+            response.sendRedirect("/?error=true&message=Invalid user type");
+            return;
+        }
+
         OidcUser oidcUser = (OidcUser) oauth2Auth.getPrincipal();
         HttpSession session = request.getSession();
 
         try {
+            logger.debug("Loading authorized client for registration ID: {} and principal: {}",
+                    oauth2Auth.getAuthorizedClientRegistrationId(), oauth2Auth.getName());
+
             OAuth2AuthorizedClient authorizedClient = authorizedClientService.loadAuthorizedClient(
                     oauth2Auth.getAuthorizedClientRegistrationId(),
                     oauth2Auth.getName());
 
             if (authorizedClient == null) {
+                logger.error("No authorized client found for registration ID: {} and principal: {}",
+                        oauth2Auth.getAuthorizedClientRegistrationId(), oauth2Auth.getName());
                 session.setAttribute("token_error", "No authorized client found");
                 response.sendRedirect("/");
                 return;
@@ -117,14 +135,19 @@ public class LoginController implements AuthenticationSuccessHandler, Authentica
 
             OAuth2AccessToken accessToken = authorizedClient.getAccessToken();
             String tokenValue = accessToken.getTokenValue();
+            logger.debug("Access token obtained successfully");
 
             try {
                 Jwt jwt = jwtDecoder.decode(tokenValue);
                 Map<String, Object> claims = jwt.getClaims();
+                logger.debug("JWT decoded successfully with claims: {}", claims);
+
                 session.setAttribute("access_token", tokenValue);
                 session.setAttribute("access_token_claims", claims);
                 session.setAttribute("id_token", oidcUser.getIdToken().getTokenValue());
+                logger.info("Session attributes set successfully");
             } catch (Exception e) {
+                logger.error("Error decoding JWT", e);
                 session.setAttribute("token_error", "Access token error: Invalid token");
             }
         } catch (Exception e) {
@@ -149,24 +172,18 @@ public class LoginController implements AuthenticationSuccessHandler, Authentica
     public void onAuthenticationFailure(HttpServletRequest request, HttpServletResponse response,
             AuthenticationException exception) throws IOException, ServletException {
         logger.error("Authentication failed", exception);
-
-        // Log detailed error information
         logger.error("Error message: {}", exception.getMessage());
         logger.error("Error type: {}", exception.getClass().getName());
         if (exception.getCause() != null) {
             logger.error("Root cause: {}", exception.getCause().getMessage());
         }
+        logger.error("Request URI: {}", request.getRequestURI());
+        logger.error("Query string: {}", request.getQueryString());
 
-        // Store error details in session
         HttpSession session = request.getSession();
         session.setAttribute("auth_error", exception.getMessage());
         session.setAttribute("auth_error_type", exception.getClass().getSimpleName());
 
-        // Log request details that might be helpful
-        logger.error("Request URI: {}", request.getRequestURI());
-        logger.error("Query string: {}", request.getQueryString());
-
-        // URL encode the error message
         String encodedMessage = URLEncoder.encode(exception.getMessage(), StandardCharsets.UTF_8.toString());
         response.sendRedirect("/?error=true&message=" + encodedMessage);
     }

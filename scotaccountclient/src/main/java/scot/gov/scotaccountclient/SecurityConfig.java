@@ -149,7 +149,7 @@ public class SecurityConfig {
                                                                 "/login/oauth2/code/**"))
                                 .authorizeHttpRequests(auth -> auth
                                                 .requestMatchers("/", "/error", "/webjars/**", "/css/**", "/js/**",
-                                                                "/images/**")
+                                                                "/images/**", "/logout")
                                                 .permitAll()
                                                 .anyRequest().authenticated())
                                 .oauth2Login(oauth2 -> oauth2
@@ -159,18 +159,18 @@ public class SecurityConfig {
                                                                                                 clientRegistrationRepository)))
                                                 .tokenEndpoint(token -> token
                                                                 .accessTokenResponseClient(this
-                                                                                .customAccessTokenResponseClient())))
+                                                                                .customAccessTokenResponseClient()))
+                                                .loginPage("/")
+                                                .defaultSuccessUrl("/", true))
                                 .sessionManagement(session -> session
-                                                .sessionCreationPolicy(SessionCreationPolicy.ALWAYS)
+                                                .sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)
                                                 .maximumSessions(1)
-                                                .expiredUrl("/"))
+                                                .expiredUrl("/login?expired")
+                                                .and()
+                                                .invalidSessionUrl("/login?invalid")
+                                                .sessionFixation().newSession())
                                 .logout(logout -> logout
-                                                .logoutUrl("/logout")
-                                                .logoutSuccessUrl("/")
-                                                .invalidateHttpSession(true)
-                                                .clearAuthentication(true)
-                                                .deleteCookies("JSESSIONID", "SCOTACCOUNT_SESSION")
-                                                .permitAll());
+                                                .disable());
 
                 return http.build();
         }

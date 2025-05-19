@@ -3,6 +3,7 @@ package scot.gov.scotaccountclient;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -93,27 +94,38 @@ public class HomeController {
                 OAuth2AccessToken accessToken = authorizedClient.getAccessToken();
                 if (accessToken != null) {
                     logger.debug("Access token obtained successfully");
-                    Map<String, Object> attributes = attributeService.fetchAttributes(accessToken.getTokenValue());
-                    if (attributes != null) {
-                        // Log the additional attributes for debugging
-                        logger.debug("Additional attributes from endpoint: {}", attributes);
-                        Object verifiedClaims = attributes.get("verified_claims");
-                        if (verifiedClaims != null) {
-                            logger.debug("Verified claims found: {}", verifiedClaims);
-                            // Ensure verifiedClaims is a List
-                            if (verifiedClaims instanceof List) {
-                                model.addAttribute("verifiedClaims", verifiedClaims);
+
+                    // Check if we have the required scopes for attributes
+                    Set<String> scopes = accessToken.getScopes();
+                    if (scopes != null && scopes.contains("openid") &&
+                            (scopes.contains("scotaccount.address") || scopes.contains("scotaccount.email"))) {
+                        Map<String, Object> attributes = attributeService.fetchAttributes(accessToken.getTokenValue());
+                        if (attributes != null) {
+                            // Log the additional attributes for debugging
+                            logger.debug("Additional attributes from endpoint: {}", attributes);
+                            Object verifiedClaims = attributes.get("verified_claims");
+                            if (verifiedClaims != null) {
+                                logger.debug("Verified claims found: {}", verifiedClaims);
+                                // Ensure verifiedClaims is a List
+                                if (verifiedClaims instanceof List) {
+                                    model.addAttribute("verifiedClaims", verifiedClaims);
+                                } else {
+                                    logger.warn("Verified claims is not a List: {}", verifiedClaims.getClass());
+                                    model.addAttribute("verifiedClaims", Collections.emptyList());
+                                }
                             } else {
-                                logger.warn("Verified claims is not a List: {}", verifiedClaims.getClass());
+                                logger.warn("No verified claims found in attributes");
                                 model.addAttribute("verifiedClaims", Collections.emptyList());
                             }
                         } else {
-                            logger.warn("No verified claims found in attributes");
+                            logger.warn("No attributes returned from attribute service");
                             model.addAttribute("verifiedClaims", Collections.emptyList());
                         }
                     } else {
-                        logger.warn("No attributes returned from attribute service");
+                        logger.info("Access token does not have required scopes for attributes. Current scopes: {}",
+                                scopes);
                         model.addAttribute("verifiedClaims", Collections.emptyList());
+                        model.addAttribute("needsVerification", true);
                     }
                 } else {
                     logger.warn("No access token found in authorized client");

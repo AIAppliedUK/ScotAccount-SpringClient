@@ -1,0 +1,982 @@
+Overview
+
+ScotAccount currently provides two distinct capabilities, namely: 
+1 - Authentication
+2 - Provision of verified attributes (including a verified identity to gpg45 medium) 
+ScotAccount allows RPs/SCs to run one or more OIDC code flows to authenticate a user and then request data as the user goes through the RP's user journey. RPs must run an OIDC code flow to authenticate the user first before running any other flow/s to request data. Data can only be provided when end users are present and give their permission. 
+These capabilities are provided to Relying Parties/Service Customers (RPs/SCs) using OIDC (Open ID Connect) - auth code flows with PKCE (Proof Key Code Exchange).  If the openid scope is provided on its own then the user will be authenticated. If an RP wants to request any verified attribute/s, they must first run an OIDC flow to authenticate the user and check whether they know them and/ or still require attribute/s.  
+If they do require any attribute/s, they should then run another flow with the relevant attribute scope/s as well as openid. ScotAccount will return the verified attribute/s if it is able to. 
+The table below details the scopes and the verified attributes that can be requested. 
+Capability 
+Scope
+Verification Method
+Description
+Authentication
+openid 
+gpg44 medium
+OIDC authorisation requests must contain the openid scope value to indicate that an application intends to use the OIDC protocol.
+The ID token obtained at the end of this flow has a Sub field which is a UUID which is unique and persistent and identifies a user. i.e. every time the same user logs on, an id token with the same Sub will be produced.
+Verified Attributes: identity 
+ 
+scotaccount.gpg45.medium
+gpg45 medium
+ 
+This scope provides the outcome of the identity verification process. This can either be “verified” with the identity attribute consisting of a name and DOB bound to the Sub (UUID) or “unverified” where the user has completed but not been verified through the gpg45 process. Further details are provided in the 
+ScotAccount data schema below:
+{
+    "$defs": {
+        "issType": {
+            "type": "string",
+            "format": "uri",
+            "description": "The issuer of the JWT"
+        },
+        "subType": {
+            "type": "string",
+            "description": "The subject of the JWT"
+        },
+        "iatType": {
+            "type": "integer",
+            "description": "The issued at time of the JWT"
+        },
+        "addressType": {
+            "type": "object",
+            "properties": {
+                "uprn": {
+                    "type": "string",
+                    "pattern": "^[0-9]+$",
+                    "maxLength": 12,
+                    "description": "Unique Property Reference Number"
+                },
+                "organisationName": {
+                    "type": "string",
+                    "maxLength": 60,
+                    "description": "Organisation Name"
+                },
+                "departmentName": {
+                    "type": "string",
+                    "maxLength": 60,
+                    "description": "Department Name"
+                },
+                "subBuildingName": {
+                    "type": "string",
+                    "maxLength": 60,
+                    "description": "Sub-Building Name"
+                },
+                "buildingNumber": {
+                    "type": "string",
+                    "pattern": "^[0-9]+$",
+                    "maxLength": 4,
+                    "description": "Building Number"
+                },
+                "buildingName": {
+                    "type": "string",
+                    "maxLength": 50,
+                    "description": "Building Name"
+                },
+                "dependentStreetName": {
+                    "type": "string",
+                    "maxLength": 80,
+                    "description": "Dependent Street Name"
+                },
+                "streetName": {
+                    "type": "string",
+                    "maxLength": 80,
+                    "description": "Street Name"
+                },
+                "doubleDependentAddressLocality": {
+                    "type": "string",
+                    "maxLength": 35,
+                    "description": "Double Dependent Address Locality"
+                },
+                "dependentAddressLocality": {
+                    "type": "string",
+                    "maxLength": 35,
+                    "description": "Dependent Address Locality"
+                },
+                "addressLocality": {
+                    "type": "string",
+                    "maxLength": 30,
+                    "description": "Address Locality"
+                },
+                "postalCode": {
+                    "type": "string",
+                    "maxLength": 8,
+                    "description": "Postal Code"
+                }
+            }
+        },
+        "verificationType": {
+            "type": "object",
+            "properties": {
+                "outcome": {
+                    "type": "string",
+                    "enum": [
+                        "VERIFIED_SUCCESSFULLY",
+                        "VERIFIED_WITH_WARNINGS",
+                        "VERIFICATION_FAILED"
+                    ],
+                    "description": "Outcome of the verification process"
+                },
+                "trust_framework": {
+                    "type": "string",
+                    "enum": [
+                        "uk_tfida"
+                    ],
+                    "description": "Identifier for the trust framework"
+                },
+                "assurance_policy": {
+                    "type": "string",
+                    "enum": [
+                        "GPG_45",
+                        "other_possible_values"
+                    ],
+                    "description": "The assurance policy used through the verification process."
+                },
+                "confidence_level": {
+                    "type": "string",
+                    "enum": [
+                        "low",
+                        "medium",
+                        "high",
+                        "very_high"
+                    ],
+                    "description": "The confidence level as described in good practice guide 45."
+                },
+                "validation_method": {
+                    "type": "string",
+                    "enum": [
+                        "credit_reference_agency",
+                        "email_loop",
+                        "self_certified"
+                    ],
+                    "descriptions": {
+                        "credit_reference_agency": "Validation using credit reference agency",
+                        "email_loop": "Validation via email loop process",
+                        "self_certified": "Validation via self certification"
+                    }
+                },
+                "time": {
+                    "type": "string",
+                    "format": "date-time",
+                    "description": "Time at which the claims were verified"
+                },
+                "verifier": {
+                    "type": "object",
+                    "properties": {
+                        "organization": {
+                            "type": "string",
+                            "maxLength": 60,
+                            "description": "Name of the organization that verified the claims"
+                        },
+                        "txn": {
+                            "type": "string",
+                            "format": "uuid",
+                            "description": "Transaction ID of the verification process"
+                        }
+                    },
+                    "required": [
+                        "organization",
+                        "txn"
+                    ]
+                }
+            },
+            "required": [
+                "outcome",
+                "trust_framework",
+                "time",
+                "verifier"
+            ]
+        },
+        "emailType": {
+            "type": "string",
+            "format": "email",
+            "description": "End-User's preferred e-mail address. Its value MUST conform to the RFC 5322 [RFC5322] addr-spec syntax"
+        },
+        "givenNameType": {
+            "type": "string",
+            "description": "The given name of the end user."
+        },
+        "familyNameType": {
+            "type": "string",
+            "description": "The family name of the end user."
+        },
+        "birthDateType": {
+            "type": "string",
+            "format": "date",
+            "description": "The birth date of the end user in YYYY-MM-DD format."
+        },
+        "scopeType": {
+            "type": "string",
+            "enum": [
+                "scotaccount.address",
+                "scotaccount.gpg45.medium",
+                "scotaccount.email"
+            ],
+            "description": "The scope of verified claims. Each scope returns a well defines set of claims."
+        },
+        "addressClaimsType": {
+            "type": "object",
+            "properties": {
+                "address": {
+                    "$ref": "#/$defs/addressType"
+                }
+            },
+            "required": [
+                "address"
+            ]
+        },
+        "emailClaimsType": {
+            "type": "object",
+            "properties": {
+                "email": {
+                    "$ref": "#/$defs/emailType"
+                }
+            },
+            "required": [
+                "email"
+            ]
+        },
+        "gpg45MediumClaimsType": {
+            "type": "object",
+            "properties": {
+                "given_name": {
+                    "$ref": "#/$defs/givenNameType"
+                },
+                "family_name": {
+                    "$ref": "#/$defs/familyNameType"
+                },
+                "birth_date": {
+                    "$ref": "#/$defs/birthDateType"
+                }
+            },
+            "required": [
+                "given_name",
+                "family_name",
+                "birth_date"
+            ]
+        }
+    },
+    "$id": "https://schema.scotaccount.service.gov.scot/external/v2/scotaccount-verified-claims",
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "scotaccount.verified.claims",
+    "type": "object",
+    "properties": {
+        "iss": {
+            "$ref": "#/$defs/issType"
+        },
+        "sub": {
+            "$ref": "#/$defs/subType"
+        },
+        "iat": {
+            "$ref": "#/$defs/iatType"
+        },
+        "verified_claims": {
+            "type": "array",
+            "items": {
+                "scope": {
+                    "$ref": "#/$defs/scopeType"
+                },
+                "verification": {
+                    "$ref": "#/$defs/verificationType"
+                },
+                "claims": {
+                    "oneOf": [
+                        {
+                            "$ref": "#/$defs/addressClaimsType"
+                        },
+                        {
+                            "$ref": "#/$defs/emailClaimsType"
+                        },
+                        {
+                            "$ref": "#/$defs/gpg45MediumClaimsType"
+                        }
+                    ]
+                }
+            },
+            "required": [
+                "scope",
+                "verification"
+            ]
+        }
+    },
+    "required": [
+        "iss",
+        "sub",
+        "iat",
+        "verified_claims"
+    ]
+}
+
+
+
+Verified Attributes: address
+ 
+scotaccount.address
+Claimed address checked against credit reference records. 
+This scope provides a verified address. Further details are provided in the 
+ScotAccount data schema .
+ 
+Verified Attributes: scotaccount.email
+ 
+scotaccount.email
+Verified by ScotAccount at sign up/ account creation. 
+This scope provides a verified email address. Further details are provided in the 
+ScotAccount data schema .
+
+
+ Step 3 - JWKS_URI
+
+The jwks_uri endpoint provides an interface to see our public key, which we use for signing of JWt’s.
+It contains the following information [ “kty” , “e” , “use” , “kid” , “n” ]
+Keys will be rotated periodically, and the current and old keys will be kept available. The most resent key will always be the first one available in the json structure.
+Day 1
+{"keys":[{"kty":"RSA","e":"AQAB","use":"sig","kid":"WgiG","n":"123"}]}
+Day 2
+{"keys":[
+{"kty":"RSA","e":"AQAB","use":"sig","kid":"XsXX","n":"456"},
+{"kty":"RSA","e":"AQAB","use":"sig","kid":"WgiG","n":"123"}]}
+Day 3
+{"keys":[
+{"kty":"RSA","e":"AQAB","use":"sig","kid":"ZZ12","n":"789"},
+{"kty":"RSA","e":"AQAB","use":"sig","kid":"XsXX","n":"456"},
+{"kty":"RSA","e":"AQAB","use":"sig","kid":"WgiG","n":"123"}]}
+"kty": Key Type - Indicates that it's an RSA key.
+"e": Public Exponent - The exponent used for RSA encryption/decryption.
+"use": Key Use - Indicates that the key is used for signature verification.
+"kid": Key ID - A unique identifier for the key.
+"n": Modulus - Part of the RSA public key.
+ScotAccount recommends that the relying party calls the JWKS prior commencing each OIDC flow. This will ensure the latest ScotAccount public key is available to the relying party. ScotAccount routinely and automatically rotates signing keys.
+Rotation of keys ensures that there is always a valid key available for verifying JWT signatures, and older keys are retained for a period to handle JWTs signed with those keys.
+
+NOTE: https://authz.integration.scotaccount.service.gov.scot/jwks.json is for use with our integration environment.
+Step 4 - Make a Request for Authentication
+
+To make an authentication request, your application should first send the user to the authorisation URL.
+An example of the command is detailed below.
+Authorisation URL Request
+
+
+
+GET https://authz.integration.scotaccount.service.gov.scot/authorize?
+client_id="YOUR_CLIENT_ID"
+&redirect_uri="YOUR_REDIRECT_URI"
+&response_type=code
+&scope=openid
+&code_challenge_method=S256
+&code_challenge="YOUR_CODE_CHALLENGE"
+&state="YOUR_STATE"
+&nonce="YOUR_NONCE"
+
+Our Authentication flow is valid for 7 days. This means you will need to persist the &state parameter for up to 7 days.
+Parameters - Request for Authentication
+
+Replace the placeholder values or “YOUR_*” from the above request with your specifics and follow the guidance provided.
+Parameter
+Type
+Description
+client_id
+Required
+You will have been be issued your client_ID during onboarding with ScotAccount.
+redirect_uri
+Required
+You’ll have specified one or moreredirect_uri during onboarding with ScotAccount.
+The redirect URI parameter must exactly match one of the redirect URIs you specified, except that it must be URL-encoded.
+URI to which the authorisation server will redirect the user after authentication and authorisation.
+response_type
+Required
+You must set this value to be code: response_type=code.
+scope
+Required
+openid
+code_challenge_method
+Required
+This value indicates which encryption algorithm has been used to generate the code_challenge. ScotAccount only support SHA-256 therefore this value must be set to S256.
+code_challenge
+Required
+We mandate the use of Proof Key for Code Exchange (PKCE) and this parameter is your code_challenge that is generated from your code_verifier by your OIDC client library.
+OAuth have a very good explanation of the PKCE protocol here on their website.
+state
+Required
+When you receive a response at the redirect URL, there must be a way to verify the response came for a request which you sent. The state value solves this issue by binding the request and response, which reduces impact of Cross Site Request Forgery attacks.
+This value will be returned to the client in the authentication response. As DIS allows OIDC flows to last up to 7 days
+nonce
+Required
+A unique value generated by your application that is used to verify the integrity of the id_token and mitigate replay attacks
+Response - Request for Authentication
+
+
+
+
+HTTP/1.1 302 Found
+Location: https://YOUR_REDIRECT_URI?code=YOUR_CODE&state=xyzABC123
+Errors - Request for Authentication
+
+To understand more about what the error is, you can look in the response. Depending on the type of error you receive, the response may contain an error and an error_description which will provide you with information.
+If the token request is invalid or unauthorised, you’ll receive an error response with the Content-Type of application/json, for example:
+
+
+
+HTTP/1.1 400 Bad Request
+Content-Type: application/json
+{
+  "error": "invalid_request"
+  "error_description": "invalid scope"     
+}
+The table below has information on the error types you may encounter. These include the oauth standard errors. 
+Http Code
+Error Code
+Error Description
+302
+account_selection_required
+Account sign-up was cancelled
+302
+access_denied
+See oauth standard errors.
+302
+invalid_dis_prompt
+Invalid dis_prompt: found more than one: *List of invalid prompts*
+302
+invalid_dis_prompt
+Invalid dis_prompt: *Invalid prompt*
+302
+invalid_request
+Required PKCE method(s): [plain, S256]
+302
+invalid_request
+Invalid Request: Missing state parameter
+302
+invalid_request
+Invalid request: Missing response_type parameter
+302
+invalid_request
+Invalid request: Missing redirect_uri parameter
+302
+invalid_request
+Invalid request: Invalid claims parameter: Invalid JSON
+302
+invalid_request
+Invalid request: Invalid claims parameter: Unexpected type of JSON object member with key *Invalid json key*
+302
+unsupported_response_type
+Unsupported response type
+302
+unsupported_response_type
+Unsupported response type *Unsupported response type*
+302
+invalid_scope
+Invalid scope: missing scope openid
+302
+invalid_scope
+Invalid scope: *Invalid scope*
+302
+invalid_claims
+Invalid claims: invalid parameter format
+302
+invalid_claims
+Invalid claims: *List of invalid claims*
+Step 5 - Redirect
+
+The Relying Party’s web application issues a 302 http redirect with the necessary authentication request and parameters needed.
+Step 6 - Authentication Request
+
+The User Agent executes the request from Step 3.
+Step 7 - User Authentication
+
+ScotAccount provides a series of screens for authentication to happen
+Step 8 - Store the auth_code challenge and method
+
+ScotAccount stores auth_code challenge and method
+Step 9 - Redirect with REDIRECT_URI
+
+The Relying Party's web application issues a http redirect using the REDIRECT_URI.
+This is part of the callback mechanism used after successful authentication in the OIDC Flow.
+Step 10 - Send auth_code to RP
+
+A auth_code is generated after a successful OIDC Flow and returned back as a query parameter on the redirect in this step.
+Step 11 - Make a Request for Token
+
+ 
+To make a request to the token endpoint, the relying party’s application needs to exchange your authorisation code for tokens, you’ll need to make a POST request to the /token endpoint using the private_key_jwt client assertion authentication method.
+Request - Request for Token
+The request for token should look like:
+
+
+
+POST https://authz.integration.scotaccount.service.gov.scot/token?grant_type=authorization_code&client_assertion_type=urn:ietf:params:oauth:client-assertion-type:jwt-bearer&code=YOUR_CODE&client_assertion=YOUR_CLIENT_ASSERTION&redirect_uri=YOUR_REDIRECT_URI&code_verifier=YOUR_CODE_VERIFIER
+Where “YOUR_CODE”   “YOUR_CLIENT_ASSERTION”  “YOUR_REDIRECT_URI” and “YOUR_CODE_VERIFIER”  are replaced with your values.
+Example of the body of Client Assertion
+
+Below is as an example of client assertion. It needs to be signed with your private_jwt_key.
+
+
+
+{
+    "iss": "Your client ID",
+    "sub": "Your client ID",
+    "aud": "This is the endpoint you are sending this assertion to. I.e https://authz.integration.scotaccount.service.gov.scot/token or https://issuer.main.integration.scotaccount.service.gov.scot/attributes/values",
+    "exp": 1647949460384, //Unix timestamp with expiry of the assertion. As long as not expired anything can go in there
+    "jti": "aa78f001-69d2-4142-9a43-d88ac4f6d050" //unique id for token, should be unique for each request
+ }
+Parameters - Request for Token
+
+Please replace “YOUR_*”, from the above request, with the specific Relying Party values, following the advice/information provided below.
+Parameter
+Type
+Description
+client_assertion_type
+Required
+Format - "urn:ietf:params:oauth:client-assertion-type:jwt-bearer"
+code
+Required
+This information is provided in the previous step
+grant_type
+Required
+Format - "authorization_code"
+redirect_uri
+Required
+You’ll have specified one or moreredirect_uri during onboarding to ScotAccount.
+The redirect URI parameter must exactly match one of the redirect URIs you specified, except that it must be URL-encoded.
+client_assertion
+Required
+See above the example of client assertion
+code_verifier
+Required
+As part of the PKCE process, the OP will return a "code_verifier" , as part of the authorization process, that will need to be stored, and sent back to the /token endpoint.
+This is a security feature to stop MITM - Man in the Middle Attacks.
+Response where scope is openid
+
+
+
+
+{
+  "access_token": "eyJraWQiOiJXZ2lHIiwidHlwIjoiYXQrand0IiwiYWxnIjoiUlMyNTYifQ.eyJzdWIiOiI0ZjY4OTNmNC02ZmJlLTQyM2UtYTVjYy1kM2M5M2U1YTdjNDEiLCJzY3AiOlsib3BlbmlkIl0sImlzcyI6Imh0dHBzOi8vYXV0aHouc3dhbi5zaWduLWluLnNlcnZpY2UuZ292LnNjb3QiLCJleHAiOjE2Nzg5MzI2NjIsImlhdCI6MTY3ODkzMTc2MiwianRpIjoiekY4Q1VQRC10ZVkiLCJjaWQiOiI1eWh5Z2tzY3R3cHFnIn0.LiE0ocHRkXNINwwxol4XrKqYMuafZ2-gSP1S2huPam-anV9uxMxvbm7W6pvWe8n2mOUsxFDQVNgVP8OuoFuMj-nhWvm5ZornnACmHS1g0MkECOabQmnYrmqcWJesYvrlMRccrie20ZM34_wALQYL2xgtKNBBaUaD6rTmjiKU3TGgX2q7b71A72YqA9stxQjBocjjWcJuXHrbt_qmyuiS2SVniRvmOXnukpiGPLIBZshJGm3SpZiAknfrlo7EQCQUru9NHuj9DYf1wxoRYzZh8nYLXvAm7lzxkVvH1AhhHoj2TAF6YXvMOZPRC7PSrc9hOxYz3xJkOZnQmfyucyh8-Q",
+  "refresh_token": "eyJlbmMiOiJBMTI4Q0JDLUhTMjU2IiwiYWxnIjoiZGlyIn0..vnC6Aa6eIzxwHxP1eIk2rA.4or8EM0wJZfj0-w3YfjK-pz97Iysa57njT7UDuGJKa3TkFxgs1sCws9zWfYjuEK7KU_j8spLc50ngaSGQaqq23z2T-suL-B0JC949Exl_-48zPEBiQCqsBEKo338973xMm7_Arvp86aQQDQ7i5KTSd05vXqA7YCW7WCEgIG1k93JPsY0pp70NSBqPP-wpCu914yPkXTvQlte5TbyoVpH89mafQg4oyfvzQT2NBtMOC_LoeOImSOKuD0dLCNmgrsXn5CrcXLfquk8bTR283G2qE9AguphWGjm3hWIqVhXuCgZo7AsBkPxbsnt0oIQ7UuD3ZH_n7qRagiC9rOuBdYgmNaYfAYRtpEujVXB8GnwMniSgn0iyB8-tf-x3Gs8ihQe8x-dwOXwMMrXXrM11Wnevh2ZOr8TQoh4f_JHXmy7OdvcqaRTa2JzEre9gy1vSevkK6lPbCV1IeD1oIPkJk3A7FKNrWlVS5w0uJa1KaItVrQtrFrhgMHwGIqkVcWNQ-ZEnvRCRqoFzt812m6jUHchpxlFHFiiQ58kfIl6UyH9_vc8pSONMxQbgoBJftLKR0JqxHU3pTpmIjPupLxMl3YMDIdLGPmemK8pmPbHB9zvCq4eR7HiiYsb5JweBxOUaPlNCdkjj1MT30q56tldEoila_mk5V75Dj3U5EhqpRlyFYTLSzPHRjBnjlrGTb8FqZ6zSNC8JZ_U4q2LWkJge4RT2riOIC1yLmfy2K1NflNKi99P5CGzuzmavX3Yv9usqK_3CKnTPOAbtIR9lJO4eBz6uxsaB7JTp_ASxhG96OIkuupph4OvLuPVX8vX6f0i05Ay5Xa0b2-7WBR-i9m7VjUoFUCH4m2HwSzp30oOmQw_n0nT7tM_1_mXDd95StbKavkb9Yjdzg6BVA5Ux9eKU-WrF05rB9YLT5u1E4M3cNA7XCpvR935O1Hty-Z7_U58MGG2SPYKlquTjtHPV4v7Kb3M_Astr8OzDiR3Rw4q59Xd8Ak.Y4pYS8iU7Jft6ay6yywpig",
+  "scope": "openid",
+  "id_token": "eyJraWQiOiJXZ2lHIiwiYWxnIjoiUlMyNTYifQ.eyJzdWIiOiI0ZjY4OTNmNC02ZmJlLTQyM2UtYTVjYy1kM2M5M2U1YTdjNDEiLCJhdWQiOiI1eWh5Z2tzY3R3cHFnIiwiaXNzIjoiaHR0cHM6Ly9hdXRoei5zd2FuLnNpZ24taW4uc2VydmljZS5nb3Yuc2NvdCIsImV4cCI6MTY3ODkzMjY2MiwiaWF0IjoxNjc4OTMxNzYyLCJub25jZSI6IkJkSExEV1BSbVk4V0JZTjZCRXRGZkkyUlZvSm15Q1JwcEdGSXQyaEd5N0EiLCJqdGkiOiJmUF9XXzJ3NjVpVSIsInNpZCI6Inl4WjJWcE9ueWRWMENUOGoxU2JsZnp0UllEcmtxLVNKM09IN2VqRjdHUWcifQ.db79iKccqKkXF4MF2IThOV05AZHrlvmNZWAW5ojUzyQoKzHSlPtCEeC3sqwsah84gHMqU0A9ACWPbE8SECdpzOvL6QVCfoWjwuiMEzMsOZvCHccMEpeNX8rbB7_L5Mo5lLOpVl80jIezKNQJ8NMQoOgMGaBm5qkgLTVFuYqVnvpzAEb44xDeSYe7__jaXOUBiGIWMqopeqJRmR1cy5yJ9ShqDa_xoBVmAxXXXv0ZOanE7E7-LCBApdvFNRA-JUUrjMIYUNn8cSkupye6bjLElLT_qPKJc6N0mSOhH43oU5GB-heMhNX18p-07J5pFFAHotcP6VsA2mE7y96gLQ1XrA",
+  "token_type": "Bearer",
+  "expires_in": 900
+}
+Errors - Request for Token
+
+To understand more about what the error is, you can look in the response. Depending on the type of error you receive, the response may contain an error and an error_description which will provide you with information.
+If the token request is invalid or unauthorised, you’ll receive an error response with the Content-Type of application/json, for example:
+
+
+
+HTTP/1.1 501 Bad Request
+Content-Type: application/json
+{
+  "error": "internal_server_error"
+  "error_description": "Technical Error"     
+}
+The table below has information on the error types you may encounter.
+401
+access_denied
+Access_denied: Token not valid
+402
+N/A
+N/A
+ 
+invalid_session_id
+Not found: Invalid SID or expired session
+403
+access_denied
+ Access_denied: Token not valid
+404
+not_found
+ Not Found: Page not found
+500
+internal_server_error
+ 
+501
+N/A
+N/A
+502
+bad_gateway
+bad_gateway
+503
+internal_server_error
+internal_server_error : Internl Error. Please Retry
+ 
+Step 12 - Verifies auth_code and code_challenger
+
+The token end point verifies that the auth_code and code_challenge are valid
+Step 13 - Returns Token
+
+The token end point returns the following information:
+id_token
+access_token
+refresh_token
+
+Our refresh_token is valid for 15 mins
+Step 14 - Extract “sub” in ID_Token
+
+The “sub” field can be extracted from the id_token, this is a immutable GUID that is associated with the end user and never changes.
+ScotAccount recommends that the relying party verify the signatures of the tokens received using the latest configuration from the Discovery End Point and the JWKS End Point.
+ScotAccount also recommends to verify that the ‘nonce’ in ID token is the same as ‘nonce’ provided in original request.
+
+The “sub” field can be used by the Relying Party’s application as a primary/secondary key to identity the end user.
+ 
+For further detail about the responses you will receive, see: 
+Understanding Responses - more info 
+
+
+Make requests for Verified Attributes Flow
+
+Overview - requesting verified attributes.
+
+Verified attributes are requested using OIDC scopes. The current list of verified attributes is shown in the Technical Overview. After a user has been authenticated, you must run a subsequent auth code flow to make requests for verified attributes.  It is important to understand both the technical mechanism to make requests for verified attributes and their underlying business rules (see below), as well as the ScotAccount data schema.
+Business rules for verified attributes
+
+Your must first authenticate a user and check (using the UUID) whether you still require any verified attribute/s. You should not request verified attributes that you have previously been provided.
+Following that, one or more verified attributes can be requested, as scopes, as part of an auth code flow.
+ScotAccount will try its best to provide all of the requested verified attributes, but for various reasons (e.g. data not available, ScotAccount unable to verify the data, user doesn’t give permission, user cancels etc), it may not always be possible. If this is the case, ScotAccount will return as many of the verified attributes as it can. This could be any permutation of those requested, from none to all. The ScotAccount data schema describes the data model for the attributes response. 
+The user needs to be present and give their permission before data about them is provided i.e. there is no long-lived access/ refresh tokens for the attribute endpoint. Essentially the tokens are issued ‘per flow’. 
+Multiple code flows can be run separately to request multiple verified attributes.  For example, an RP may ask for some verified attributes at the beginning of a user’s application process, but later determine that additional verified attributes are required. RPs must avoid sending repeated requests for the same verified attributes, which could create loops for the user.
+The following example uses the ScotAccount.gpg45.medium (ie identity attribute) as illustrative example but any combination of the verified attribute scopes may be requested in one flow. 
+Identity attribute Flow
+
+ 
+Below diagram shows the flow of openid & ScotAccount.gpg45.medium:
+Open image-20240501-215513.jpg
+image-20240501-215513.jpg
+Identity attribute flow
+
+Below is the UML Code for the above flow diagram. One can use Plant UML website to view the code and compile the same if required. PlantUML Web Server
+ 
+Open IDV flow - tech docs (1)
+
+IDV flow - tech docs (1)
+30 Aug 2024, 04:17 PM
+Step 1 - Browse
+
+The end user browses to the Relying Party's web application.
+Step 2 - RP requests verified attribute/s 
+
+The RP requests verified attribute/s.
+Step 3 - Well Known Endpoint
+
+A well known endpoint is part of the OIDC protocol and is used as a reference point for configuration information to make sure that both the RP and OP can change information dynamically at runtime.
+ScotAccount recommends that the relying party calls the Discovery Endpoint prior commencing each OIDC flow. This will ensure any configuration changes are dynamically applied.
+
+NOTE: https://authz.integration.scotaccount.service.gov.scot/.well-known/openid-configuration is for use with our integration environment.
+ Step 4 - JWKS_URI
+
+The jwks_uri endpoint provides an interface to see our public key, which we use for signing of JWt’s.
+It contains the following information [ “kty” , “e” , “use” , “kid” , “n” ]
+Keys will be rotated periodically, and the current and old keys will be kept available. The most resent key will always be the first one available in the json structure.
+Day 1
+{"keys":[{"kty":"RSA","e":"AQAB","use":"sig","kid":"WgiG","n":"123"}]}
+Day 2
+{"keys":[
+{"kty":"RSA","e":"AQAB","use":"sig","kid":"XsXX","n":"456"},
+{"kty":"RSA","e":"AQAB","use":"sig","kid":"WgiG","n":"123"}]}
+Day 3
+{"keys":[
+{"kty":"RSA","e":"AQAB","use":"sig","kid":"ZZ12","n":"789"},
+{"kty":"RSA","e":"AQAB","use":"sig","kid":"XsXX","n":"456"},
+{"kty":"RSA","e":"AQAB","use":"sig","kid":"WgiG","n":"123"}]}
+ScotAccount recommends that the relying party calls the JWKS prior commencing each OIDC flow. This will ensure the latest ScotAccount public key is available to the relying party. ScotAccount routinely and automatically rotates signing keys.
+
+NOTE: https://authz.integration.scotaccount.service.gov.scot/jwks.json is for use with our integration environment.
+Step 5 - Make a Request for Authentication
+
+ 
+To make an authentication request, your application should first send the user to the authorisation URL. To send the user to the authorisation URL, run this command below to make a GET request, and follow the guidance in the following table to
+Request
+
+
+
+GET https://authz.integration.scotaccount.service.gov.scot/authorize?
+client_id="YOUR_CLIENT_ID"
+&redirect_uri="YOUR_REDIRECT_URI"
+&response_type=code
+&scope=openid&gpg-45-medium
+&code_challenge_method=S256
+&code_challenge="YOUR_CODE_CHALLENGE"
+&state="YOUR_STATE"
+&nonce="YOUR_NONCE"
+
+Our Authentication flow is valid for 7 days.
+Parameters - Request for Authentication
+
+Replace the placeholder values or “YOUR_*” from the above request with the Relying Party specifics and follow the guidance provided.
+Parameter
+Type
+Description
+client_id
+Required
+You will have been be issued your client_ID during onboarding with ScotAccount.
+redirect_uri
+Required
+You’ll have specified one or moreredirect_uri during onboarding with ScotAccount.
+The redirect URI parameter must exactly match one of the redirect URIs you specified, except that it must be URL-encoded.
+response_type
+Required
+You must set this value to be code: response_type=code.
+scope
+Required
+This value indicates which verified attributes are being requested.
+code_challenge_method
+Required
+This value indicates which encryption algorithm has been used to generate the code_challenge. ScotAccount only support SHA-256 therefore this value must be set to S256.
+code_challenge
+Required
+We mandate the use of Proof Key for Code Exchange (PKCE) and this parameter is your code_challenge that is generated from your code_verifier by your OIDC client library.
+OAuth have a very good explanation of the PKCE protocol here on their website.
+state
+Required
+When you receive a response at the redirect URL, there must be a way to verify the response came for a request which you sent. The state value solves this issue by binding the request and response, which reduces impact of Cross Site Request Forgery attacks.
+This value will be returned to the client in the authentication response
+nonce
+Required
+A unique value generated by your application that is used to verify the integrity of the id_token and mitigate replay attacks
+Response - Request for Authentication
+
+
+
+
+HTTP/1.1 302 Found
+Location: https://YOUR_REDIRECT_URI?code=YOUR_CODE&state=xyzABC123
+ 
+Errors - Request for Authentication
+
+To understand more about what the error is, you can look in the response. Depending on the type of error you receive, the response may contain an error and an error_description which will provide you with information.
+If the token request is invalid or unauthorised, you’ll receive an error response with the Content-Type of application/json, for example:
+
+
+
+HTTP/1.1 400 Bad Request
+Content-Type: application/json
+{
+  "error": "invalid_request"
+  "error_description": "invalid scope"     
+}
+Step 6 - Redirect
+
+Issue a 302 http redirect with the necessary authorisation request and parameters needed. This will be passed to the User_Agent, so that when authentication happens, a user input will happen.
+Step 7 - Authentication Request
+
+ScotAccount provides a series of screens for authentication to happen
+Step 8 - User Consents to share verified attribute/s
+
+ScotAccount provides a series of screens for consent and sharing to happen.
+Step 9 - Store Verification Challenge
+
+Once Authentication has happened, the code_challenge parameter in the authorisation request (PKCE) is stored, and validated again by the token end point.
+This is a security feature.
+Step 10 - Redirect
+
+Issue a 302 http redirect with the necessary authorisation request and parameters needed. This will be passed to the User_Agent, so that when authentication happens, a user input will happen.
+Step 11 - Send Auth_Code
+
+A auth_code is generation after a successful OIDC Flow and returned back to the End User.
+Step 12 - Make a Request for Token
+
+To make a request to the token endpoint, the relying party’s application needs to exchange your authorisation code for tokens, you’ll need to make a POST request to the /token endpoint using the private_key_jwt client assertion authentication method. 
+Request - Request for Token
+
+
+
+
+POST https:\/\/authz.integration.scotaccount.service.gov.scot\/token
+{
+  "client_assertion_type":  "YOUR_CLIENT_ASSERTION_TYPE",
+  "code":                   "YOUR_CODE",
+  "grant_type":             "authorization_code",
+  "redirect_uri":           "YOUR_REDIRECT_URI",
+  "client_assertion":       "YOUR_CLIENT_ASSERTION",
+  "code_verifier":          "YOUR_CODE_VERIFIER"
+}
+
+Our access_token is valid for 15 mins
+Parameters - Request for Token
+
+Please replace “YOUR_*”, from the above request, with the specific Relying Party information, following the advice/information provided below.
+Parameter
+Type
+Description
+client_assertion_type
+Required
+Format - "urn:ietf:params:oauth:client-assertion-type:jwt-bearer"
+code
+Required
+This information is provided in the previous step
+grant_type
+Required
+Format - "authorization_code"
+redirect_uri
+Required
+You’ll have specified one or moreredirect_uri during onboarding to ScotAccount.
+The redirect URI parameter must exactly match one of the redirect URIs you specified, except that it must be URL-encoded.
+client_assertion
+Required
+This is your public key in a jwt format.
+code_verifier
+Required
+As part of the PKCE process, the OP will return a "code_verifier" , as part of the authorization process, that will need to be stored, and sent back to the /token endpoint.
+This is a security feature to stop MITM - Man in the Middle Attacks.
+Responses - Request for Token
+
+Response where scope is openid&gpg-45-medium
+
+
+
+
+{
+  "access_token": "eyJ0eXAiOiJhdCtqd3QiLCJhbGciOiJSUzI1NiIsImtpZCI6IlNIQS0yNTYifQ.eyJzdWIiOiJkMWViNDBmOS0xZDlmLTRlOTItYjJhOC01ZTQwYzgwMGI1ODIiLCJzY3AiOlsiZ2l2ZW5fbmFtZSIsImZhbWlseV9uYW1lIiwiYmlydGhfZGF0ZSIsInVwcm4iLCJvcmdhbmlzYXRpb25OYW1lIiwiZGVwYXJ0bWVudE5hbWUiLCJzdWJCdWlsZGluZ05hbWUiLCJidWlsZGluZ051bWJlciIsImJ1aWxkaW5nTmFtZSIsImRlcGVuZGVudFN0cmVldE5hbWUiLCJzdHJlZXROYW1lIiwiZG91YmxlRGVwZW5kZW50QWRkcmVzc0xvY2FsaXR5IiwiZGVwZW5kZW50QWRkcmVzc0xvY2FsaXR5IiwiYWRkcmVzc0xvY2FsaXR5IiwicG9zdGFsQ29kZSIsImdwZy00NS1tZWRpdW0iLCJvcGVuaWQiXSwiaXNzIjoiaHR0cHM6Ly9hdXRoei5zd2FuLnNpZ24taW4uc2VydmljZS5nb3Yuc2NvdCIsImV4cCI6MTY3MTgwMzMyMiwiaWF0IjoxNjcxODAyNDIyLCJqdGkiOiIwMmJlMjE2MC1kZDNkLTRmMzctOGZmMy03NjI2ODgwNGY4OGUiLCJjaWQiOiJzb21lQ2xpZW50SWQifQ.mXtyLOWRefeE95jlxFbbpXdfvhT40vGnyjmOoiKb-KBS73zUU_hCoDTjN2T5UOSEtCm5lZfEVhQTX1Xfj0SsGLtxHkP4g260O1m9jpuklsUSIpYypq7TStCRy0jzK1-XQCxQGfucSOAM9PfoPUELTgIrerdkk4BGYkt1scD4388lglNEno9m__sSZ2p8OnJEI6F6n7YDTlIMkNgLWvBJGC344Yqn0qW2Jd9_Cly_h_rUtphIVGWRTluIAzNYRnRxbyh_XBV2PueVfypRXZ5IU5BqkMnxtFktyWphlSuULxZ5wQqP4_qd-jSk2gJzBcritmkOB_4crG0Col9V1sZkLQ",
+  "refresh_token": "yFUT9LKACgDHZv3QCe0HHPuKZo4ute4UqETyudp5K8RIALHl73OdMVhTTWErj5GY2NADmbvBAmpftA7BaZbcYXlnACPEjlPzDiITiU0Egb3zaIkkgfUzYtZmvzSe89OjdFIp3KfOsQ1vwW6i5nIVJxZI8D0K0ceCi1HjMTTyqdvouMsTXLHxboCV8PQPANDUXFRVGaJT9zAsRcWXPu01fbbK1SyNxdZG0YGxOwSun9vf8nw2F3C6zqvSAsXnf8AAKqMVv9eHG1ApOtJVr33qw4WuGz7VJGtulk3wmv98kjuU7xXXciQsnoDffKf9NX8tIXNX0chKQOueV6SR8EH1QJVdWKdjDoYIMH9WTDUxiYLl3PgZPpiGL7AC0j7h4dJbCBmbsj9rYC0i5RtDt7FVzHjSL0MYnwZgHuZM1BnrDZEBVGV1uPkGTuY6t4HZ9qn0Ft4vmGgrBDPkdafrasc3FluYez6jZP8lxtwIQ9RdbylzcGC73JZioTFjT8gzs6ABCd1B8c25ag3JzGix3NqbSDmJAT1tKriulKW2ayh3HwW8SBEgvltzgGSUwfjwDA1QW0RbtLeloPXLfES0Dgbz7xiTqu3DKQUPFWACq1pI7Bn3GMB5FvHp3vg1kIOxldoGPd5mctVVZ6L0anwQZLQzhhufZrVBXomf9kH3AEPbIVl3okIdXcEJF5kpy7jTAZ5mrtX1gf6Fq6tdXJ2PiMxK7Lhcfg59UZCzpU3KoN32VQrstHiC5uF9xFHu0notip58P0T7hcrOBLjpOePHguk8jeRR4dIgsBXKASia7Dl4TSDYhPMNbvqpG4SYO54xbW5zLjxb7IMXs2aKebtJnq5TuoTubUnInhJUSWvhG6PZgy3t6wB1AFfJwD82yH5VBgr47tokNdlX9e3R9gwkyeeZnq8fIgiaPR1SqvkjEzJRzfFPYHWck9Lbd2xgNK83SDQZCn6338G16kBqa5iH58JcgrsMjvtsKiaLoORRgqqzxWRb7N9dfyVqDRujtghy56al83DhEc9IW70caT3df346QqY9bHOno8R7IeMpu31DJhg4Bh31kVUvA7UUXGL7HSMpVt2jYKNQsG1XXdmYIpCyuP5n9NAgxwmMyT53u7DcnsSoKUezxDwFKiJtnh0W3OpBCvvKHmL9EPEnR3ByODdplGITSOAIkxh9uz2qHWyB8CKwTzLr68wkqcoOPARlBvHTgQ0SowMUxY5iSFEdEqndv8ZcgzXa0i4P5UxqLrLNGMd0qVOmN2Rikdia6EhqVpwW39TBjbX74moZNO1QA1IBQdBebH0ZO0eci7DgRI7dJDmGvlHlKnm4e6CYGSfxRgoGtvN460vputrwISJbIxkFJR6XXdjmHK4ubrwFo1yoBOnm4ehyG0UnEObH8VMUFuUNpp1MC1UUiORmNwCcJZ3thuleI3ZNFjn9fTyx7nb4kXg4sXk8BbZZvqRVv0gsijrrqCK0Gf9B3BYuyRUq0FlYvQoZmsxF",
+  "scope": "given_name family_name birth_date uprn organisationName departmentName subBuildingName buildingNumber buildingName dependentStreetName streetName doubleDependentAddressLocality dependentAddressLocality addressLocality postalCode gpg-45-medium openid",
+  "id_token": "eyJ0eXAiOiJhdCtqd3QiLCJhbGciOiJSUzI1NiIsImtpZCI6IlNIQS0yNTYifQ.eyJzdWIiOiJkMWViNDBmOS0xZDlmLTRlOTItYjJhOC01ZTQwYzgwMGI1ODIiLCJhdWQiOiJzb21lQ2xpZW50SWQiLCJpc3MiOiJodHRwczovL2F1dGh6LnN3YW4uc2lnbi1pbi5zZXJ2aWNlLmdvdi5zY290IiwiZXhwIjoxNjcxODAzMzIyLCJpYXQiOjE2NzE4MDI0MjIsIm5vbmNlIjoiODg5YmU4NjQtYzUyZi00ZWE0LTg3MzEtOTc1MjNhMzEzMjBkIiwianRpIjoiNmI1ZTU0YmMtMGViOS00NGUxLWE5OTgtMjYwM2Q4MTg2ZmYyIiwic2lkIjoiU0lEIn0.lLxz4-FuLaS-n5NC3xAr5_xOcUupVw5do4DC5ia3c3gJgE7ieoRxuS6uo2qK_MyjdkUdAOSERA15EKSD9bDpYxPzNpv39MQolA8t2mvlxsW2-pDve1rWbrr9KJXDcbOwhln0Tu9EHCd50c2zNfhC5xyLj1CTCFpUOJc9iBykv6dsLCdIKCaBWidRY0xGKo8gShkE7sUBAJhnHYWJA_cHq2pRFrIutP-vkHoe59rnpeuB08BJ4PK7EjNlCvV_22AiLJfiiokHpgQsPT0WyVSehCFZ-wiUKbtyRqHqLaIAjkdJsgR3UqPaV7qcaV7lF2ctwC2qXCzdIi_IDPdcUwWvKQ",
+  "token_type": "Bearer",
+  "expires_in": 900
+}
+Errors - Request for Token
+
+To understand more about what the error is, you can look in the response. Depending on the type of error you receive, the response may contain an error and an error_description which will provide you with information.
+If the token request is invalid or unauthorised, you’ll receive an error response with the Content-Type of application/json, for example:
+
+
+
+HTTP/1.1 400 Bad Request
+Content-Type: application/json
+{
+  "error": "invalid_request"
+  "error_description": "invalid scope"     
+}
+The table below has information on the error types you may encounter.
+401
+access_denied
+Access_denied: Token not valid
+402
+N/A
+N/A
+ 
+invalid_session_id
+Not found: Invalid SID or expired session
+403
+access_denied
+ Access_denied: Token not valid
+404
+not_found
+ Not Found: Page not found
+500
+internal_server_error
+ 
+501
+N/A
+N/A
+502
+bad_gateway
+bad_gateway
+503
+internal_server_error
+internal_server_error : Internl Error. Please Retry
+Step 13 - Verify Code_Challenge
+
+The token end point verifies that the auth_code and code_challenge are valid.
+Step 14 - Return Tokens
+
+The token end point returns the following information:
+id_token
+access_token
+refresh_token
+
+Our access_token is valid for 15 mins
+Step 15 - Check Signature
+
+ScotAccount recommends that the relying party verify the signatures of the tokens received using the latest configuration from the Discovery End Point and the JWKS End Point.
+Step 16 - Get Results
+
+To view Verified Attribute Data the user needs to have completed the identity verification journey, using the scopes=openid&gpg-45-medium.
+Then you will be able to make a GET request to /attributes/values using the access token returned from the token endpoint in the previous step and a private_key_jwt client assertion authentication method.
+Request - Get Verified Attribute Data
+
+
+
+
+GET "https://issuer.main.integration.scotaccount.service.gov.scot/attributes/values"
+Headers:
+    Authorization: "Bearer YOUR_ACCESS_TOKEN"
+    DIS-Client-Assertion: "YOUR_ASSERTION"
+Parameters - Get Verified Attribute Data
+
+Parameter
+Type
+Description
+Header
+Authorization: "Bearer ****”
+Required
+Access_Token you received from the /token endpoint
+Header
+DIS-Client-Assertion: "****”
+Required
+This will be a JWT signed by the RP's private key. Info to help construct the JWT can be found in Make Authentication Requests with Auth Code Flow 
+
+Response - Get Verified Attribute Data
+
+
+
+
+{
+  "claimsToken": "eyJraWQiOiJkTVZEIiwiYWxnIjoiUlMyNTYifQ.eyJ2ZXJpZmllZF9jbGFpbXMiOnsidmVyaWZpY2F0aW9uIjp7Im91dGNvbWUiOiJmMmNmZTBlMS02ZmJlLTRjYjYtOWU4ZC0xYzFmMTQyN2NjMmEgVkVSSUZJRUQgU1VDQ0VTU0ZVTExZIiwidHJ1c3RfZnJhbWV3b3JrIjoidWtfdGZpZGEiLCJhc3N1cmFuY2VfbGV2ZWwiOiJHUEc0NS1NZWRpdW0iLCJ0aW1lIjoiMjAyMy0wMi0xNVQxNjozOVoiLCJ2ZXJpZmllciI6eyJvcmdhbml6YXRpb24iOiJESVMiLCJ0eG4iOiJhNGRiZTg3Ny1kZjYzLTQ2MDgtOTViMC0zYTdmZTNhNGQ3NTEifX19LCJjbGFpbXMiOnsidXVpZCI6ImYyY2ZlMGUxLTZmYmUtNGNiNi05ZThkLTFjMWYxNDI3Y2MyYSIsImdpdmVuX25hbWUiOiJzYW1wbGVfZ2l2ZW5fbmFtZSIsImZhbWlseV9uYW1lIjoic2FtcGxlX2ZhbWlsaXlfbmFtZSIsImJpcnRoX2RhdGUiOiIxOTkwLTA5LTA4IiwiYWRkcmVzcyI6eyJ1cHJuIjoiOTA2NzAwMDgxNzU5Iiwic3ViQnVpbGRpbmdOYW1lIjoiMC8yIiwiYnVpbGRpbmdOdW1iZXIiOiI5OSIsInN0cmVldE5hbWUiOiJzYW1wbGVfc3RyZWV0X25hbWUiLCJhZGRyZXNzTG9jYWxpdHkiOiJzYW1wbGVfbG9jYWx0aW9uIiwicG9zdGFsQ29kZSI6IlgxMTFYWCJ9fX0="
+}
+ 
+Errors - Get Verified Attribute Data
+
+To understand more about what the error is, you can look in the response. Depending on the type of error you receive, the response may contain an error and an error_description which will provide you with information.
+If the token request is invalid or unauthorised, you’ll receive an error response with the Content-Type of application/json, for example:
+
+
+
+HTTP/1.1 400 Bad Request
+Content-Type: application/json
+{
+  "error": "invalid_request"
+  "error_description": "invalid scope"     
+}
+The table below has information on the error types you may encounter.
+401
+access_denied
+returned if the request is malformed in some way
+402
+N/A
+N/A
+ 
+invalid_session_id
+Not found: Invalid SID or expired session
+403
+access_denied
+ returned if assertion or access token is wrong.
+404
+not_found
+ returned if there is no data for that user
+500
+internal_server_error
+ if something has gone wrong with internal side.
+501
+N/A
+N/A
+502
+bad_gateway
+ if something has gone wrong with internal side.
+503
+internal_server_error
+ if something has gone wrong with internal side.
+Step 17 - Verify Access Token and Private_JWT
+
+The Verified Data End Point verifies that both the access_token and private_jwt are correct and valid.
+Step 18 - Send results JWT
+
+Return to the Relying Party's application a signed JWT with verified claims of the end user.
+Step 19 - Check signature of results
+
+ScotAccount recommends that the Relying Party verify the signatures of the token received using the latest configuration from the Discovery End Point and the JWKS End Point.
+Step 20 - Verify “sub” field in results
+
+ScotAccount recommends that the Relying Party verifies that the correct valid user details are given, by checking the “sub” field matches the initial request sent.
+ 
+For further detail about the responses you will receive, see: 
+Understanding Responses - more info 
+
+ 

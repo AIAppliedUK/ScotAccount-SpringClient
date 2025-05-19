@@ -4,7 +4,7 @@ A Java Spring Boot application demonstrating integration with ScotAccount's OAut
 
 ## Features
 
-- OAuth2/OIDC authentication with ScotAccount
+- OIDC authentication with ScotAccount
 - PKCE flow support for enhanced security
 - JWT-based client authentication
 - Attribute verification flow
@@ -27,7 +27,7 @@ A Java Spring Boot application demonstrating integration with ScotAccount's OAut
 
 #### Authentication Flow
 
-- Standard OAuth2/OIDC authentication with OpenID scope
+- Standard OIDC authentication with OpenID scope
 - Secure session management
 - CSRF protection
 - Custom error handling
@@ -54,7 +54,7 @@ A Java Spring Boot application demonstrating integration with ScotAccount's OAut
 - Java 21
 - Maven 3.x
 - ScotAccount client credentials
-- RSA key pair for JWT signing
+- Provision of RSA key pair for JWT signing
 
 ### Configuration
 
