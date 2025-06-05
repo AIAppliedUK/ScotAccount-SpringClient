@@ -125,7 +125,6 @@ public class HomeController {
                         logger.info("Access token does not have required scopes for attributes. Current scopes: {}",
                                 scopes);
                         model.addAttribute("verifiedClaims", Collections.emptyList());
-                        model.addAttribute("needsVerification", true);
                     }
                 } else {
                     logger.warn("No access token found in authorized client");
