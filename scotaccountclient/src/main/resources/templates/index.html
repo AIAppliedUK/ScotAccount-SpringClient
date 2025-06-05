@@ -291,12 +291,6 @@
                         <dl>
                             <dt>User ID:</dt>
                             <dd><span th:text="${#authentication.principal.attributes['sub']}">Not provided</span></dd>
-                            <dt>Email:</dt>
-                            <dd>
-                                <span th:text="${#authentication.principal.attributes['email']}"></span>
-                                <span th:if="${#authentication.principal.attributes['email_verified']}" 
-                                      class="badge">Verified</span>
-                            </dd>
                         </dl>
                     </div>
 
@@ -308,76 +302,21 @@
                             <div class="verification-info" th:if="${claim != null and claim.verification != null}" style="background: var(--scot-gov-light-blue); padding: 16px; margin-bottom: 24px; border-radius: 4px; border: 1px solid var(--scot-gov-blue);">
                                 <strong style="color: var(--scot-gov-blue); display: block; margin-bottom: 12px;">Verification Details</strong>
                                 <dl style="display: grid; grid-template-columns: 200px 1fr; gap: 12px; margin: 0;">
-                                    <dt style="font-weight: 600; color: var(--scot-gov-text);">Outcome:</dt>
-                                    <dd th:text="${claim.verification.outcome}">Not provided</dd>
-                                    <dt style="font-weight: 600; color: var(--scot-gov-text);">Trust Framework:</dt>
-                                    <dd th:text="${claim.verification.trust_framework}">Not provided</dd>
-                                    <dt style="font-weight: 600; color: var(--scot-gov-text);">Validation Method:</dt>
-                                    <dd th:text="${claim.verification.validation_method}">Not provided</dd>
-                                    <dt style="font-weight: 600; color: var(--scot-gov-text);">Verification Time:</dt>
-                                    <dd th:text="${claim.verification.time}">Not provided</dd>
-                                    <dt style="font-weight: 600; color: var(--scot-gov-text);">Verifier Organization:</dt>
-                                    <dd th:text="${claim.verification.verifier != null ? claim.verification.verifier.organization : 'Not provided'}">Not provided</dd>
-                                    <dt style="font-weight: 600; color: var(--scot-gov-text);">Transaction ID:</dt>
-                                    <dd th:text="${claim.verification.verifier != null ? claim.verification.verifier.txn : 'Not provided'}">Not provided</dd>
+                                    <th:block th:each="entry : ${claim.verification.entrySet()}">
+                                        <dt th:text="${entry.key}"></dt>
+                                        <dd th:text="${entry.value}"></dd>
+                                    </th:block>
                                 </dl>
                             </div>
 
                             <div th:if="${claim != null and claim.claims != null}">
-                                <!-- GPG45 Medium Claims -->
-                                <div th:if="${claim.scope == 'scotaccount.gpg45.medium'}">
-                                    <h5 style="color: var(--scot-gov-blue); font-size: 18px; margin: 16px 0;">Identity Information</h5>
-                                    <dl style="display: grid; grid-template-columns: 200px 1fr; gap: 12px; margin: 0;">
-                                        <dt style="font-weight: 600; color: var(--scot-gov-text);">Given Name:</dt>
-                                        <dd th:text="${claim.claims.given_name}">Not provided</dd>
-                                        <dt style="font-weight: 600; color: var(--scot-gov-text);">Family Name:</dt>
-                                        <dd th:text="${claim.claims.family_name}">Not provided</dd>
-                                        <dt style="font-weight: 600; color: var(--scot-gov-text);">Birth Date:</dt>
-                                        <dd th:text="${claim.claims.birth_date}">Not provided</dd>
-                                    </dl>
-                                </div>
-                                
-                                <!-- Email Claims -->
-                                <div th:if="${claim.scope == 'scotaccount.email'}">
-                                    <h5 style="color: var(--scot-gov-blue); font-size: 18px; margin: 16px 0;">Email Information</h5>
-                                    <dl style="display: grid; grid-template-columns: 200px 1fr; gap: 12px; margin: 0;">
-                                        <dt style="font-weight: 600; color: var(--scot-gov-text);">Email Address:</dt>
-                                        <dd th:text="${claim.claims.email}">Not provided</dd>
-                                    </dl>
-                                </div>
-                                
-                                <!-- Address Claims -->
-                                <div th:if="${claim.scope == 'scotaccount.address'}">
-                                    <h5 style="color: var(--scot-gov-blue); font-size: 18px; margin: 16px 0;">Address Information</h5>
-                                    <dl style="display: grid; grid-template-columns: 200px 1fr; gap: 12px; margin: 0;">
-                                        <div th:if="${claim.claims.address != null}">
-                                            <dt style="font-weight: 600; color: var(--scot-gov-text);">UPRN:</dt>
-                                            <dd th:text="${claim.claims.address.get('uprn') != null ? claim.claims.address.get('uprn') : 'Not provided'}">Not provided</dd>
-                                            <dt style="font-weight: 600; color: var(--scot-gov-text);">Organisation Name:</dt>
-                                            <dd th:text="${claim.claims.address.get('organisationName') != null ? claim.claims.address.get('organisationName') : 'Not provided'}">Not provided</dd>
-                                            <dt style="font-weight: 600; color: var(--scot-gov-text);">Department Name:</dt>
-                                            <dd th:text="${claim.claims.address.get('departmentName') != null ? claim.claims.address.get('departmentName') : 'Not provided'}">Not provided</dd>
-                                            <dt style="font-weight: 600; color: var(--scot-gov-text);">Sub-Building Name:</dt>
-                                            <dd th:text="${claim.claims.address.get('subBuildingName') != null ? claim.claims.address.get('subBuildingName') : 'Not provided'}">Not provided</dd>
-                                            <dt style="font-weight: 600; color: var(--scot-gov-text);">Building Number:</dt>
-                                            <dd th:text="${claim.claims.address.get('buildingNumber') != null ? claim.claims.address.get('buildingNumber') : 'Not provided'}">Not provided</dd>
-                                            <dt style="font-weight: 600; color: var(--scot-gov-text);">Building Name:</dt>
-                                            <dd th:text="${claim.claims.address.get('buildingName') != null ? claim.claims.address.get('buildingName') : 'Not provided'}">Not provided</dd>
-                                            <dt style="font-weight: 600; color: var(--scot-gov-text);">Dependent Street Name:</dt>
-                                            <dd th:text="${claim.claims.address.get('dependentStreetName') != null ? claim.claims.address.get('dependentStreetName') : 'Not provided'}">Not provided</dd>
-                                            <dt style="font-weight: 600; color: var(--scot-gov-text);">Street Name:</dt>
-                                            <dd th:text="${claim.claims.address.get('streetName') != null ? claim.claims.address.get('streetName') : 'Not provided'}">Not provided</dd>
-                                            <dt style="font-weight: 600; color: var(--scot-gov-text);">Double Dependent Address Locality:</dt>
-                                            <dd th:text="${claim.claims.address.get('doubleDependentAddressLocality') != null ? claim.claims.address.get('doubleDependentAddressLocality') : 'Not provided'}">Not provided</dd>
-                                            <dt style="font-weight: 600; color: var(--scot-gov-text);">Dependent Address Locality:</dt>
-                                            <dd th:text="${claim.claims.address.get('dependentAddressLocality') != null ? claim.claims.address.get('dependentAddressLocality') : 'Not provided'}">Not provided</dd>
-                                            <dt style="font-weight: 600; color: var(--scot-gov-text);">Address Locality:</dt>
-                                            <dd th:text="${claim.claims.address.get('addressLocality') != null ? claim.claims.address.get('addressLocality') : 'Not provided'}">Not provided</dd>
-                                            <dt style="font-weight: 600; color: var(--scot-gov-text);">Postal Code:</dt>
-                                            <dd th:text="${claim.claims.address.get('postalCode') != null ? claim.claims.address.get('postalCode') : 'Not provided'}">Not provided</dd>
-                                        </div>
-                                    </dl>
-                                </div>
+                                <strong style="color: var(--scot-gov-blue); font-size: 18px; margin: 16px 0;">Claims</strong>
+                                <dl style="display: grid; grid-template-columns: 200px 1fr; gap: 12px; margin: 0;">
+                                    <th:block th:each="entry : ${claim.claims.entrySet()}">
+                                        <dt th:text="${entry.key}"></dt>
+                                        <dd th:text="${entry.value}"></dd>
+                                    </th:block>
+                                </dl>
                             </div>
                         </div>
                     </div>
