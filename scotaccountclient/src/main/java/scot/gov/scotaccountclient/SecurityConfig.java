@@ -17,7 +17,6 @@ import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.List;
-import java.util.Set;
 import java.util.HashSet;
 
 /**
@@ -164,11 +163,10 @@ public class SecurityConfig {
                                                 .defaultSuccessUrl("/", true))
                                 .sessionManagement(session -> session
                                                 .sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)
-                                                .maximumSessions(1)
-                                                .expiredUrl("/login?expired")
-                                                .and()
                                                 .invalidSessionUrl("/login?invalid")
-                                                .sessionFixation().newSession())
+                                                .sessionFixation().newSession()
+                                                .maximumSessions(1)
+                                                .expiredUrl("/login?expired"))
                                 .logout(logout -> logout
                                                 .disable());
 

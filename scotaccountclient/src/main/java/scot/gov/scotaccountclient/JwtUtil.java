@@ -293,24 +293,6 @@ public class JwtUtil {
     }
 
     /**
-     * Extracts the Authentication Method References (AMR) from JWT claims.
-     * 
-     * @param claims The JWT claims to extract AMR from
-     * @return A list of AMR entries, or an empty list if none are found
-     */
-    @SuppressWarnings("unchecked")
-    private List<Map<String, String>> extractAmr(Claims claims) {
-        if (claims == null) {
-            return Collections.emptyList();
-        }
-        Map<String, Object> claimsMap = claims.get("claims", Map.class);
-        if (claimsMap == null) {
-            return Collections.emptyList();
-        }
-        return (List<Map<String, String>>) claimsMap.get("amr");
-    }
-
-    /**
      * Extracts verifier information from verification claims.
      * 
      * @param verification The verification claims map
