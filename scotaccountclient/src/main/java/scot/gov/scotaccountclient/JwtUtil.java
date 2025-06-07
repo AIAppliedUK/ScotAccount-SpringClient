@@ -237,7 +237,7 @@ public class JwtUtil {
      * <p>
      * This method parses the JWT header to extract the 'kid' (key ID) claim,
      * which is used to identify the correct public key for validation.
-     * </p>
+     * <
      *
      * @param jwt The JWT string to parse
      * @return The key ID extracted from the JWT header
