@@ -1,0 +1,319 @@
+@startuml OIDC Flow with PKCE and Error Handling
+
+skinparam noteBackgroundColor #FEFECE
+skinparam noteBorderColor #999999
+
+actor "User Browser" as Browser
+participant "Spring Application" as App
+participant "OpenID Provider" as OP
+participant "Token Endpoint" as Token
+participant "UserInfo Endpoint" as UserInfo
+participant "JWKS Endpoint" as JWKS
+participant "Verified Claims Endpoint" as VCE
+
+== Initial Login Request ==
+Browser -> App: 1. GET /oauth2/authorization/scotaccount
+note right of App
+  Headers:
+  - Cookie: JSESSIONID=<session_id>
+  - Accept: text/html
+end note
+App -> App: 2. Generate PKCE
+note right of App
+  PKCE Values:
+  - code_verifier: E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM
+  - code_challenge: E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM
+  - code_challenge_method: S256
+end note
+App -> App: 3. Store in session
+note right of App
+  Session Data:
+  - state: <random_state>
+  - code_verifier: <pkce_verifier>
+  - nonce: <random_nonce>
+  - verification_scopes: ["scotaccount.address", "scotaccount.gpg45.medium", "scotaccount.email"]
+end note
+
+== Authorization Redirect ==
+App --> Browser: 4. HTTP/1.1 302 Found
+note right
+  Location: https://issuer.main.integration.scotaccount.service.gov.scot/authorize?
+    client_id=6ovfxtjaivlpy&
+    response_type=code&
+    redirect_uri=https://localhost:8080/login/oauth2/code/scotaccount&
+    scope=openid scotaccount.address scotaccount.gpg45.medium scotaccount.email&
+    state=<state>&
+    code_challenge=<challenge>&
+    code_challenge_method=S256&
+    nonce=<nonce>&
+    response_mode=form_post
+  Set-Cookie: XSRF-TOKEN=<csrf_token>; Path=/; HttpOnly=false
+end note
+
+== User Authentication ==
+Browser -> OP: 5. GET /authorize
+note right
+  Headers:
+  - Accept: text/html
+  - User-Agent: <browser_info>
+  - Cookie: XSRF-TOKEN=<csrf_token>
+end note
+OP -> Browser: 6. HTTP/1.1 200 OK
+note right
+  Content-Type: text/html
+  Set-Cookie: <auth_session_cookie>
+end note
+
+alt Successful Authentication
+    Browser -> OP: 7. POST /authorize
+    note right
+      Headers:
+      - Content-Type: application/x-www-form-urlencoded
+      - Cookie: <auth_session_cookie>
+      Body:
+      - username: <user_email>
+      - password: <user_password>
+    end note
+    OP -> Browser: 8. HTTP/1.1 200 OK
+    note right
+      Content-Type: text/html
+      Set-Cookie: <consent_session_cookie>
+    end note
+else Invalid Credentials
+    OP --> Browser: 7a. HTTP/1.1 401 Unauthorized
+    note right
+      Content-Type: text/html
+      Body: "Invalid credentials"
+    end note
+end
+
+== Authorization Code Return ==
+alt Successful Authorization
+    OP --> Browser: 9. HTTP/1.1 302 Found
+    note right
+      Location: https://localhost:8080/login/oauth2/code/scotaccount?
+        code=<authorization_code>&
+        state=<state>
+    end note
+else Invalid/Expired State
+    OP --> Browser: 9a. HTTP/1.1 302 Found
+    note right
+      Location: https://localhost:8080/?error=invalid_state
+    end note
+end
+
+== Token Exchange ==
+App -> Token: 10. POST https://issuer.main.integration.scotaccount.service.gov.scot/token
+note right
+  Headers:
+  - Content-Type: application/x-www-form-urlencoded
+  - Authorization: Basic <base64(client_id:client_secret)>
+  Body:
+  - grant_type: authorization_code
+  - code: <authorization_code>
+  - redirect_uri: https://localhost:8080/login/oauth2/code/scotaccount
+  - code_verifier: <pkce_verifier>
+end note
+
+alt Successful Token Exchange
+    Token --> App: 11. HTTP/1.1 200 OK
+    note right
+      Content-Type: application/json
+      Body:
+      {
+        "access_token": "eyJhbGciOiJSUzI1NiIs...",
+        "id_token": "eyJhbGciOiJSUzI1NiIs...",
+        "token_type": "Bearer",
+        "expires_in": 3600,
+        "scope": "openid scotaccount.address scotaccount.gpg45.medium scotaccount.email",
+        "refresh_token": "eyJhbGciOiJSUzI1NiIs..."
+      }
+    end note
+else Invalid/Expired Code
+    Token --> App: 11a. HTTP/1.1 400 Bad Request
+    note right
+      Content-Type: application/json
+      Body:
+      {
+        "error": "invalid_grant",
+        "error_description": "Authorization code expired"
+      }
+    end note
+end
+
+== Verified Claims Request ==
+App -> VCE: 12. GET https://issuer.main.integration.scotaccount.service.gov.scot/attributes/values
+note right
+  Headers:
+  - Authorization: Bearer <access_token>
+  - Accept: application/json
+end note
+VCE --> App: 13. HTTP/1.1 200 OK
+note right
+  Content-Type: application/json
+  Body:
+  {
+    "$schema": "https://schema.scotaccount.service.gov.scot/external/v2/scotaccount-verified-claims",
+    "iss": "https://issuer.main.integration.scotaccount.service.gov.scot/jwt",
+    "sub": "80a78374-6fbe-4c4c-ac36-acf7b4047d17",
+    "iat": 1749548971,
+    "verified_claims": [
+      {
+        "scope": "scotaccount.address",
+        "verification": {
+          "outcome": "VERIFIED_SUCCESSFULLY",
+          "trust_framework": "uk_tfida",
+          "validation_method": "credit_reference_agency",
+          "time": "2025-03-19T10:12:54Z",
+          "verifier": {
+            "organization": "DIS",
+            "txn": "e766b0f2-1873-4199-8f62-e6af182a7f47"
+          }
+        },
+        "claims": {
+          "address": {
+            "uprn": "132021690",
+            "buildingNumber": "5",
+            "streetName": "DALNAIR PLACE",
+            "dependentAddressLocality": "MILNGAVIE",
+            "addressLocality": "GLASGOW",
+            "postalCode": "G627RD"
+          }
+        }
+      },
+      {
+        "scope": "scotaccount.gpg45.medium",
+        "verification": {
+          "outcome": "VERIFIED_SUCCESSFULLY",
+          "trust_framework": "uk_tfida",
+          "assurance_policy": "GPG_45",
+          "confidence_level": "medium",
+          "time": "2025-03-19T10:12:54Z",
+          "verifier": {
+            "organization": "DIS",
+            "txn": "e766b0f2-1873-4199-8f62-e6af182a7f47"
+          }
+        },
+        "claims": {
+          "given_name": "David William",
+          "family_name": "Mcnabb",
+          "birth_date": "1976-08-24"
+        }
+      },
+      {
+        "scope": "scotaccount.email",
+        "verification": {
+          "outcome": "VERIFIED_SUCCESSFULLY",
+          "trust_framework": "uk_tfida",
+          "validation_method": "email_loop",
+          "time": "2025-06-10T10:49:31+01:00",
+          "verifier": {
+            "organization": "DIS",
+            "txn": "3ee4b5a2-a1fa-41f9-8365-db7086cac624"
+          }
+        },
+        "claims": {
+          "email": "david@aiapplied.uk"
+        }
+      }
+    ]
+  }
+end note
+
+== Token Validation ==
+App -> JWKS: 14. GET https://issuer.main.integration.scotaccount.service.gov.scot/jwks
+note right
+  Headers:
+  - Accept: application/json
+end note
+JWKS --> App: 15. HTTP/1.1 200 OK
+note right
+  Content-Type: application/json
+  Body:
+  {
+    "keys": [
+      {
+        "kid": "key1",
+        "kty": "RSA",
+        "n": "<modulus>",
+        "e": "<exponent>"
+      }
+    ]
+  }
+end note
+
+== Token Processing ==
+App -> App: 16. Process tokens and claims
+note right
+  Access Token Claims:
+  {
+    "sub": "80a78374-6fbe-4c4c-ac36-acf7b4047d17",
+    "scope": "openid scotaccount.address scotaccount.gpg45.medium scotaccount.email",
+    "exp": 1735689600,
+    "iat": 1735686000
+  }
+  
+  ID Token Claims:
+  {
+    "sub": "80a78374-6fbe-4c4c-ac36-acf7b4047d17",
+    "iss": "https://issuer.main.integration.scotaccount.service.gov.scot/jwt",
+    "aud": "6ovfxtjaivlpy",
+    "exp": 1735689600,
+    "iat": 1735686000,
+    "nonce": "<nonce>",
+    "auth_time": 1735686000,
+    "acr": "urn:scotaccount:ac:methods:scotaccount"
+  }
+end note
+
+== Session Management ==
+App -> App: 17. Create new session
+note right of App
+  Session Configuration:
+  - SessionCreationPolicy: IF_REQUIRED
+  - Maximum Sessions: 1
+  - Session Fixation: newSession
+  - Invalid Session URL: /login?invalid
+  - Expired Session URL: /login?expired
+end note
+
+== Final Redirect ==
+alt Successful Flow
+    App --> Browser: 18. HTTP/1.1 302 Found
+    note right
+      Location: /
+      Set-Cookie: 
+        - JSESSIONID=<new_session_id>; Path=/; HttpOnly; Secure
+        - XSRF-TOKEN=<new_csrf_token>; Path=/; HttpOnly=false
+    end note
+    Browser -> App: 19. GET /
+    note right
+      Headers:
+      - Cookie: 
+        - JSESSIONID=<new_session_id>
+        - XSRF-TOKEN=<new_csrf_token>
+    end note
+    App --> Browser: 20. HTTP/1.1 200 OK
+    note right
+      Content-Type: text/html
+      Body: <home_page_with_user_info>
+    end note
+else Error Flow
+    App --> Browser: 18a. HTTP/1.1 302 Found
+    note right
+      Location: /?error=<error_type>
+      Set-Cookie: JSESSIONID=<new_session_id>; Path=/; HttpOnly; Secure
+    end note
+    Browser -> App: 19a. GET /?error=<error_type>
+    note right
+      Headers:
+      - Cookie: JSESSIONID=<new_session_id>
+    end note
+    App --> Browser: 20a. HTTP/1.1 200 OK
+    note right
+      Content-Type: text/html
+      Body: <error_page>
+    end note
+end
+
+@enduml 

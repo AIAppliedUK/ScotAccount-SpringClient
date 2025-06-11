@@ -1,5 +1,8 @@
 @startuml Token Validation and Claims Processing
 
+skinparam noteBackgroundColor #FEFECE
+skinparam noteBorderColor #999999
+
 participant "LoggedInController" as Controller
 participant "JwtDecoder" as Decoder
 participant "JWKS Endpoint" as JWKS
@@ -11,40 +14,147 @@ database "Logging System" as Logger
 activate Controller
 
 Controller -> Controller: Extract access token
+note right
+  Headers:
+  - Cookie: JSESSIONID=<session_id>
+  - Authorization: Bearer <access_token>
+end note
+
 alt Successful Access Token Extraction
     Controller -> Decoder: decode(accessToken)
+    note right
+      Access Token:
+      eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.
+      eyJzdWIiOiIxMjM0NTY3ODkwIiwic2NvcGUiOiJvcGVuaWQiLCJleHAiOjE3MzU2ODk2MDAsImlhdCI6MTczNTY4NjAwMH0.
+      <signature>
+    end note
     activate Decoder
     
-    Decoder -> JWKS: Fetch public keys
+    Decoder -> JWKS: GET /jwks
+    note right
+      Headers:
+      - Accept: application/json
+    end note
     activate JWKS
-    JWKS --> Decoder: Return JWK set
+    JWKS --> Decoder: HTTP/1.1 200 OK
+    note right
+      Content-Type: application/json
+      Body:
+      {
+        "keys": [
+          {
+            "kid": "key1",
+            "kty": "RSA",
+            "n": "<modulus>",
+            "e": "<exponent>"
+          }
+        ]
+      }
+    end note
     deactivate JWKS
     
     alt Valid Token Structure
         Decoder -> Decoder: Verify token signature
+        note right
+          Using RSA public key from JWKS
+          - Extract kid from header
+          - Find matching key in JWKS
+          - Verify signature using public key
+        end note
         alt Valid Signature
             Decoder -> Decoder: Parse claims
+            note right
+              Access Token Claims:
+              {
+                "sub": "user123",
+                "scope": "openid",
+                "exp": 1735689600,
+                "iat": 1735686000
+              }
+            end note
             Decoder --> Controller: Return decoded JWT
             Controller -> Logger: Log success
+            note right
+              Log Entry:
+              {
+                "event": "token_validation_success",
+                "token_type": "access_token",
+                "user_id": "user123",
+                "timestamp": "2024-03-15T10:00:00Z"
+              }
+            end note
             Controller -> Session: Store access token claims
+            note right
+              Session Data:
+              - access_token_claims: <decoded_claims>
+              - access_token_expiry: <expiry_timestamp>
+            end note
         else Invalid Signature
             Decoder --> Controller: Throw JwtValidationException
             Controller -> Logger: Log signature error
+            note right
+              Log Entry:
+              {
+                "event": "token_validation_error",
+                "error": "invalid_signature",
+                "token_type": "access_token",
+                "timestamp": "2024-03-15T10:00:00Z"
+              }
+            end note
             Controller -> Session: Store error details
+            note right
+              Session Data:
+              - error: "invalid_signature"
+              - error_description: "Token signature verification failed"
+            end note
         end
     else Invalid Token Structure
         Decoder --> Controller: Throw JwtException
         Controller -> Logger: Log malformed token
+        note right
+          Log Entry:
+          {
+            "event": "token_validation_error",
+            "error": "malformed_token",
+            "token_type": "access_token",
+            "timestamp": "2024-03-15T10:00:00Z"
+          }
+        end note
         Controller -> Session: Store error details
+        note right
+          Session Data:
+          - error: "malformed_token"
+          - error_description: "Token structure is invalid"
+        end note
     end
     deactivate Decoder
 else Token Extraction Failed
     Controller -> Logger: Log missing token
+    note right
+      Log Entry:
+      {
+        "event": "token_validation_error",
+        "error": "missing_token",
+        "timestamp": "2024-03-15T10:00:00Z"
+      }
+    end note
     Controller -> Session: Store error details
+    note right
+      Session Data:
+      - error: "missing_token"
+      - error_description: "No access token found in request"
+    end note
 end
 
 == ID Token Processing ==
 Controller -> Controller: Extract ID token
+note right
+  ID Token:
+  eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.
+  eyJzdWIiOiIxMjM0NTY3ODkwIiwiaXNzIjoiaHR0cHM6Ly9hdXRoei5pbnRlZ3JhdGlvbi5zY290YWNjb3VudC5zZXJ2aWNlLmdvdi5zY290IiwiYXVkIjoiNm92Znh0amFpdmxweSIsImV4cCI6MTczNTY4OTYwMCwiaWF0IjoxNzM1Njg2MDAwLCJub25jZSI6IjEyMzQ1Njc4OTAxMjM0NTY3ODkwIn0.
+  <signature>
+end note
+
 alt Successful ID Token Extraction
     Controller -> Decoder: decode(idToken)
     activate Decoder
@@ -54,46 +164,136 @@ alt Successful ID Token Extraction
         alt Valid Signature
             Decoder -> Decoder: Validate claims
             note right
-                Validate:
-                - iss (issuer)
-                - aud (audience)
-                - exp (expiration)
-                - iat (issued at)
-                - sub (subject)
+              Validate:
+              - iss: https://authz.integration.scotaccount.service.gov.scot
+              - aud: 6ovfxtjaivlpy
+              - exp: 1735689600
+              - iat: 1735686000
+              - sub: user123
+              - nonce: <stored_nonce>
             end note
             
             alt Valid Claims
                 Decoder --> Controller: Return decoded JWT
                 Controller -> Logger: Log success
+                note right
+                  Log Entry:
+                  {
+                    "event": "token_validation_success",
+                    "token_type": "id_token",
+                    "user_id": "user123",
+                    "timestamp": "2024-03-15T10:00:00Z"
+                  }
+                end note
                 Controller -> Session: Store ID token claims
+                note right
+                  Session Data:
+                  - id_token_claims: <decoded_claims>
+                  - id_token_expiry: <expiry_timestamp>
+                end note
             else Invalid Claims
                 Decoder --> Controller: Throw JwtValidationException
                 Controller -> Logger: Log claims validation error
+                note right
+                  Log Entry:
+                  {
+                    "event": "token_validation_error",
+                    "error": "invalid_claims",
+                    "token_type": "id_token",
+                    "timestamp": "2024-03-15T10:00:00Z"
+                  }
+                end note
                 Controller -> Session: Store error details
+                note right
+                  Session Data:
+                  - error: "invalid_claims"
+                  - error_description: "Token claims validation failed"
+                end note
             end
         else Invalid Signature
             Decoder --> Controller: Throw JwtValidationException
             Controller -> Logger: Log signature error
+            note right
+              Log Entry:
+              {
+                "event": "token_validation_error",
+                "error": "invalid_signature",
+                "token_type": "id_token",
+                "timestamp": "2024-03-15T10:00:00Z"
+              }
+            end note
             Controller -> Session: Store error details
+            note right
+              Session Data:
+              - error: "invalid_signature"
+              - error_description: "Token signature verification failed"
+            end note
         end
     else Invalid Token Structure
         Decoder --> Controller: Throw JwtException
         Controller -> Logger: Log malformed token
+        note right
+          Log Entry:
+          {
+            "event": "token_validation_error",
+            "error": "malformed_token",
+            "token_type": "id_token",
+            "timestamp": "2024-03-15T10:00:00Z"
+          }
+        end note
         Controller -> Session: Store error details
+        note right
+          Session Data:
+          - error: "malformed_token"
+          - error_description: "Token structure is invalid"
+        end note
     end
     deactivate Decoder
 else Token Extraction Failed
     Controller -> Logger: Log missing token
+    note right
+      Log Entry:
+      {
+        "event": "token_validation_error",
+        "error": "missing_token",
+        "timestamp": "2024-03-15T10:00:00Z"
+      }
+    end note
     Controller -> Session: Store error details
+    note right
+      Session Data:
+      - error: "missing_token"
+      - error_description: "No ID token found in request"
+    end note
 end
 
 == Final Processing ==
 alt All Validations Successful
     Controller -> Session: Store user info
-    [<-- Controller: Redirect to home
+    note right
+      Session Data:
+      - user_id: "user123"
+      - authentication_time: "2024-03-15T10:00:00Z"
+      - session_state: "active"
+    end note
+    [<-- Controller: HTTP/1.1 302 Found
+    note right
+      Location: /
+      Set-Cookie: JSESSIONID=<new_session_id>
+    end note
 else Validation Errors
     Controller -> Session: Store error summary
-    [<-- Controller: Redirect to error page
+    note right
+      Session Data:
+      - error_summary: {
+          "access_token": <access_token_error>,
+          "id_token": <id_token_error>
+        }
+    end note
+    [<-- Controller: HTTP/1.1 302 Found
+    note right
+      Location: /?error=token_validation_failed
+    end note
 end
 
 deactivate Controller

@@ -1,170 +1,211 @@
-@startuml Spring Application Flow
+@startuml Spring Security OIDC Flow
 
+' Layout and styling directives
 skinparam noteBackgroundColor #FEFECE
 skinparam noteBorderColor #999999
+skinparam participantBackgroundColor #FFFFFF
+skinparam participantBorderColor #000000
+skinparam ScotAccountServiceBackgroundColor #E0F0FF
+skinparam ScotAccountServiceBorderColor #0066CC
+skinparam ScotAccountClientBackgroundColor #E0FFE0
+skinparam ScotAccountClientBorderColor #009900
 
-actor "Browser" as browser
-participant "Spring Security Filter Chain" as securityFilter
-participant "SecurityConfig" as secConfig #E0FFE0
-participant "OAuth2AuthorizationRequestResolver" as requestResolver
-participant "OAuth2AuthorizationRequestRepository" as requestRepo
-participant "OAuth2LoginAuthenticationFilter" as loginFilter
-participant "OAuth2AuthorizedClientRepository" as clientRepo
-participant "OAuth2AuthenticationToken" as authToken
-participant "OAuth2AuthorizationCodeAuthenticationProvider" as authProvider
-participant "OAuth2AuthorizationCodeAuthenticationToken" as codeAuthToken
-participant "OAuth2AuthorizationResponse" as authResponse
-participant "HomeController" as homeCtrl #E0FFE0
-participant "LoginController" as loginCtrl #E0FFE0
-participant "VerificationController" as verifyCtrl #E0FFE0
-participant "LogoutController" as logoutCtrl #E0FFE0
-participant "Authorization Server" as authServer #E0F0FF
-participant "Token Endpoint" as tokenEndpoint #E0F0FF
-participant "Attributes Endpoint" as attrEndpoint #E0F0FF
+' Layout optimization
+skinparam maxMessageSize 150
+skinparam wrapWidth 200
+skinparam defaultFontName Arial
+skinparam defaultFontSize 12
+skinparam sequence {
+    ArrowColor #666666
+    LifeLineBorderColor #666666
+    ParticipantBorderColor #666666
+    ParticipantBackgroundColor #FFFFFF
+    BoxBorderColor #666666
+    BoxBackgroundColor #FFFFFF
+}
 
-== Application Startup ==
-secConfig -> secConfig: configure(HttpSecurity)
-activate secConfig
-secConfig -> secConfig: oauth2Login()\ncustomize()
-secConfig -> requestResolver: register()
-secConfig -> requestRepo: register()
-secConfig -> authProvider: register()
-deactivate secConfig
+actor "User Browser" as Browser
+participant "SecurityConfig" as SecurityConfig #E0FFE0
+participant "LoginController" as LoginController #E0FFE0
+participant "LogoutController" as LogoutController #E0FFE0
+participant "VerificationController" as VerificationController #E0FFE0
+participant "HomeController" as HomeController #E0FFE0
+participant "AttributeService" as AttributeService #E0FFE0
+participant "CustomOAuth2AccessTokenResponseClient" as CustomTokenClient #E0FFE0
+participant "OAuth2AuthorizedClientService" as OAuth2AuthorizedClientService
+participant "OAuth2AuthenticationToken" as OAuth2AuthenticationToken
+participant "OidcUser" as OidcUser
+participant "JwtDecoder" as JwtDecoder
+participant "OAuth2AccessToken" as OAuth2AccessToken
+participant "ClientRegistrationRepository" as ClientRegistrationRepository
+participant "OAuth2AuthorizationRequestResolver" as OAuth2AuthorizationRequestResolver
+participant "SecurityFilterChain" as SecurityFilterChain
+participant "CookieCsrfTokenRepository" as CookieCsrfTokenRepository
+participant "ScotAccount\nAuthorization Service" as ScotAuth #E0F0FF
+participant "ScotAccount\nToken Service" as ScotToken #E0F0FF
+participant "ScotAccount\nAttributes Service" as ScotAttr #E0F0FF
+participant "ScotAccount\nJWKS Service" as ScotJWKS #E0F0FF
 
-== Initial Home Page Request ==
-browser -> securityFilter: GET /\nCookie: JSESSIONID=<session_id>
-securityFilter -> homeCtrl: index()
-activate homeCtrl
-homeCtrl --> browser: Home page view\nSet-Cookie: JSESSIONID=<session_id>
-deactivate homeCtrl
-
-== Initial Login Request ==
-browser -> securityFilter: GET /oauth2/authorization/scotaccount\nCookie: JSESSIONID=<session_id>
-activate securityFilter
-
-securityFilter -> requestResolver: resolve(HttpServletRequest)
-activate requestResolver
-requestResolver -> requestResolver: generateState()\ngeneratePKCE()
-note right
-  Stores in session:
-  - code_verifier
-  - state
-  - nonce
+' Initialization Section
+== Initialization ==
+SecurityConfig -> ClientRegistrationRepository: Injects ClientRegistrationRepository
+SecurityConfig -> JwtDecoder: Injects JwtDecoder
+SecurityConfig -> OAuth2AuthorizationRequestResolver: Defines PKCE-enabled Auth Request Resolver (Bean)
+SecurityConfig -> CustomTokenClient: Defines CustomOAuth2AccessTokenResponseClient (Bean)
+SecurityConfig -> SecurityFilterChain: Configures SecurityFilterChain (Bean)
+SecurityConfig -> CookieCsrfTokenRepository: Configures CSRF Token Repository (Bean)
+SecurityConfig -> OAuth2AuthorizedClientService: Injects OAuth2AuthorizedClientService
+SecurityConfig -> AttributeService: Injects AttributeService
+SecurityConfig -> LoginController: Injects OAuth2AuthorizedClientService, JwtDecoder
+SecurityConfig -> LogoutController: Injects dependencies
+SecurityConfig -> VerificationController: Injects OAuth2AuthorizedClientService
+SecurityConfig -> HomeController: Injects OAuth2AuthorizedClientService, AttributeService
+note right of SecurityConfig
+  Session Configuration:
+  - SessionCreationPolicy: IF_REQUIRED
+  - Maximum Sessions: 1
+  - Session Fixation: newSession
+  - Invalid Session URL: /login?invalid
+  - Expired Session URL: /login?expired
 end note
-requestResolver --> securityFilter: OAuth2AuthorizationRequest
-deactivate requestResolver
 
-securityFilter -> requestRepo: saveAuthorizationRequest()
-activate requestRepo
-requestRepo --> securityFilter: void
-deactivate requestRepo
+' Initial Request Section
+== Initial Request ==
+Browser -> SecurityConfig: 1. Configure Security
+SecurityConfig -> SecurityFilterChain: 2. Build Filter Chain
+SecurityConfig -> OAuth2AuthorizationRequestResolver: 3. Create Auth Request Resolver
+SecurityConfig -> ClientRegistrationRepository: 4. Load Client Registration
+SecurityConfig -> CookieCsrfTokenRepository: 5. Setup CSRF
+SecurityConfig -> CustomTokenClient: 6. Register Custom Token Client
 
-securityFilter --> browser: 302 Redirect to Authorization Server\nLocation: /authorize?...\nSet-Cookie: JSESSIONID=<session_id>
-deactivate securityFilter
+Browser -> LoginController: 7. GET /oauth2/authorization/scotaccount
+LoginController -> OAuth2AuthorizationRequestResolver: 8. Resolve Auth Request
+OAuth2AuthorizationRequestResolver -> ClientRegistrationRepository: 9. Get Client Registration
+LoginController -> Browser: 10. Redirect to ScotAuth
 
-== Authorization Server Interaction ==
-browser -> authServer: GET /authorize\nQuery params:\n- client_id=scotaccount\n- response_type=code\n- redirect_uri=.../login/oauth2/code/scotaccount\n- scope=openid\n- state=<state>\n- code_challenge=<challenge>\n- code_challenge_method=S256\n- nonce=<nonce>
-activate authServer
-authServer --> browser: Login & Consent UI
-browser -> authServer: POST credentials & consent
-authServer --> browser: 302 Redirect\nLocation: .../login/oauth2/code/scotaccount?code=<auth_code>&state=<state>
-deactivate authServer
-
-== Authorization Code Processing ==
-browser -> loginFilter: GET /login/oauth2/code/scotaccount
-activate loginFilter
-loginFilter -> loginCtrl: onAuthenticationSuccess()
-activate loginCtrl
-
-loginCtrl -> clientRepo: loadAuthorizedClient()
-activate clientRepo
-note right
-  Stores in session:
-  - access_token
-  - id_token
-  - token_claims
+' ScotAccount Authorization Endpoint
+Browser -> ScotAuth: 11. GET https://issuer.main.integration.scotaccount.service.gov.scot/authorize
+note right of ScotAuth
+  Headers:
+  - Accept: text/html
+  - Cookie: XSRF-TOKEN=<csrf_token>
+  Query Params:
+  - client_id=<client_id>
+  - response_type=code
+  - redirect_uri=https://localhost:8080/login/oauth2/code/scotaccount
+  - scope=openid scotaccount.address scotaccount.gpg45.medium scotaccount.email
+  - state=<state>
+  - code_challenge=<challenge>
+  - code_challenge_method=S256
+  - nonce=<nonce>
+  - response_mode=form_post
 end note
-clientRepo --> loginCtrl: OAuth2AuthorizedClient
-deactivate clientRepo
+ScotAuth --> Browser: 12. HTTP/1.1 302 Found (redirect with code & state)
+note right of Browser
+  Location: /login/oauth2/code/scotaccount?code=<authorization_code>&state=<state>
+end note
 
-loginCtrl --> browser: 302 Redirect to /
-deactivate loginCtrl
-deactivate loginFilter
+' Authorization Code Return Section
+== Authorization Code Return ==
+Browser -> LoginController: 13. GET /login/oauth2/code/scotaccount
+LoginController -> OAuth2AuthenticationToken: 14. Parse Auth Token
+LoginController -> OidcUser: 15. Parse OIDC User
+LoginController -> OAuth2AuthorizedClientService: 16. Load Authorized Client
+LoginController -> JwtDecoder: 17. Decode Access Token
+note right of LoginController
+  Token Storage:
+  - Access Token: OAuth2AuthorizedClient
+  - ID Token: OidcUser
+  - Refresh Token: OAuth2AuthorizedClient
+end note
+LoginController -> HomeController: 18. Redirect to Home
 
+' ScotAccount Token Endpoint
+CustomTokenClient -> ScotToken: 19. POST https://issuer.main.integration.scotaccount.service.gov.scot/token
+note right of ScotToken
+  Headers:
+  - Content-Type: application/x-www-form-urlencoded
+  - Authorization: Basic <base64(client_id:client_secret)>
+  Body:
+  - grant_type: authorization_code
+  - code: <authorization_code>
+  - redirect_uri: https://localhost:8080/login/oauth2/code/scotaccount
+  - code_verifier: <pkce_verifier>
+end note
+ScotToken --> CustomTokenClient: 20. HTTP/1.1 200 OK
+note right of CustomTokenClient
+  Content-Type: application/json
+  Body:
+  {
+    "access_token": "<access_token>",
+    "id_token": "<id_token>",
+    "token_type": "Bearer",
+    "expires_in": 3600,
+    "scope": "openid scotaccount.address scotaccount.gpg45.medium scotaccount.email",
+    "refresh_token": "<refresh_token>"
+  }
+end note
+CustomTokenClient -> OAuth2AccessToken: 21. Parse Access Token
+CustomTokenClient -> JwtDecoder: 22. Decode Token Claims
+
+' ScotAccount JWKS Endpoint
+JwtDecoder -> ScotJWKS: 23. GET https://issuer.main.integration.scotaccount.service.gov.scot/jwks
+note right of ScotJWKS
+  Headers:
+  - Accept: application/json
+end note
+ScotJWKS --> JwtDecoder: 24. HTTP/1.1 200 OK
+note right of JwtDecoder
+  Content-Type: application/json
+  Body:
+  {
+    "keys": [
+      {
+        "kid": "key1",
+        "kty": "RSA",
+        "n": "<modulus>",
+        "e": "<exponent>"
+      }
+    ]
+  }
+end note
+
+' ScotAccount Attributes Endpoint
+HomeController -> AttributeService: 25. fetchAttributes(access_token)
+AttributeService -> ScotAttr: 26. GET https://issuer.main.integration.scotaccount.service.gov.scot/attributes/values
+note right of ScotAttr
+  Headers:
+  - Authorization: Bearer <access_token>
+  - Accept: application/json
+end note
+ScotAttr --> AttributeService: 27. HTTP/1.1 200 OK
+note right of AttributeService
+  Content-Type: application/json
+  Body:
+  {
+    "$schema": "https://schema.scotaccount.service.gov.scot/external/v2/scotaccount-verified-claims",
+    "iss": "https://issuer.main.integration.scotaccount.service.gov.scot/jwt",
+    "sub": "<subject_id>",
+    "iat": <timestamp>,
+    "verified_claims": [ ... ]
+  }
+  Verified Claims:
+  - Retrieved from ScotAccount
+  - Stored in AttributeService
+end note
+AttributeService -> HomeController: 28. Return Verified Claims
+
+' Verification Flow Section
 == Verification Flow ==
-browser -> securityFilter: POST /verify
-activate securityFilter
-securityFilter -> verifyCtrl: initiateVerification()
-activate verifyCtrl
+Browser -> VerificationController: 29. GET /verify
+VerificationController -> OAuth2AuthorizedClientService: 30. Load Authorized Client
+VerificationController -> Browser: 31. Redirect to /oauth2/authorization/scotaccount (with scopes)
 
-verifyCtrl -> verifyCtrl: validateScopes()
-note right
-  Validates requested scopes:
-  - scotaccount.address
-  - scotaccount.email
-end note
-
-verifyCtrl -> verifyCtrl: storeVerificationScopes()
-note right
-  Stores in session:
-  - verification_scopes
-end note
-
-verifyCtrl --> browser: 302 Redirect to /oauth2/authorization/scotaccount
-deactivate verifyCtrl
-deactivate securityFilter
-
-== Attribute Verification ==
-browser -> securityFilter: GET /attributes
-activate securityFilter
-securityFilter -> verifyCtrl: fetchAttributes()
-activate verifyCtrl
-
-verifyCtrl -> attrEndpoint: GET /attributes/values
-activate attrEndpoint
-attrEndpoint --> verifyCtrl: User Attributes
-deactivate attrEndpoint
-
-verifyCtrl -> verifyCtrl: processAttributes()
-note right
-  Processes:
-  - email
-  - address
-  - other verified claims
-end note
-
-verifyCtrl --> browser: Attributes Response
-deactivate verifyCtrl
-deactivate securityFilter
-
+' Logout Flow Section
 == Logout Flow ==
-browser -> securityFilter: POST /logout
-activate securityFilter
-securityFilter -> logoutCtrl: logout()
-activate logoutCtrl
-
-logoutCtrl -> logoutCtrl: invalidateSession()
-note right
-  Cleans up:
-  - HTTP Session
-  - Security Context
-  - Cookies
-end note
-
-logoutCtrl --> browser: 302 Redirect to /
-deactivate logoutCtrl
-deactivate securityFilter
-
-== Error Handling ==
-alt Authentication Error
-    loginCtrl -> loginCtrl: onAuthenticationFailure()
-    loginCtrl --> browser: 302 Redirect to /?error=auth_error
-else Verification Error
-    verifyCtrl -> verifyCtrl: handleVerificationError()
-    verifyCtrl --> browser: 302 Redirect to /?error=verification_error
-else Logout Error
-    logoutCtrl -> logoutCtrl: handleLogoutError()
-    logoutCtrl --> browser: 302 Redirect to /?error=logout_error
-end
+Browser -> LogoutController: 32. POST /logout
+LogoutController -> OAuth2AuthenticationToken: 33. Get Auth Token
+LogoutController -> OidcUser: 34. Get ID Token
+LogoutController -> ScotAuth: 35. Redirect to /logout endpoint
 
 @enduml 
