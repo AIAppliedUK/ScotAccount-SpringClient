@@ -1,457 +1,323 @@
-# ScotAccount Client Demo
+# ScotAccount Client Application
 
-A Java Spring Boot application demonstrating integration with ScotAccount's OAuth2/OIDC authentication service.
+A Spring Boot application demonstrating secure integration with ScotAccount's OAuth2/OIDC authentication service for Scottish Government digital services.
 
-## Features
+## Overview
 
-- OIDC authentication with ScotAccount
-- PKCE flow support for enhanced security
-- JWT-based client authentication
-- Attribute verification flow
-- Session management
-- CSRF protection
+This application serves as a reference implementation for integrating with ScotAccount, the Scottish Government's digital identity service. It demonstrates secure authentication flows, verified attribute retrieval, and best practices for building trusted digital services.
 
-## Project Structure
+## Key Features
 
-### Core Components
-
-- `ScotaccountClientApplication`: Main application entry point
-- `SecurityConfig`: OAuth2/OIDC security configuration
-- `HomeController`: Main page controller handling user authentication state
-- `VerificationController`: Handles additional attribute verification flow
-- `AttributeService`: Service for fetching user attributes from ScotAccount
-- `JwtUtil`: JWT operations utility (signing, validation, key management)
-- `CustomOAuth2AccessTokenResponseClient`: Custom token response handling
-
-### Key Features
-
-#### Authentication Flow
-
-- Standard OIDC authentication with OpenID scope
-- Secure session management
-- CSRF protection
-- Custom error handling
-
-#### Verification Flow
-
-- Additional attribute verification (GPG45 Medium, Address, Email)
-- Scope-based authorization
-- Session-based scope management
-- Secure token handling
-
-#### Security Features
-
-- PKCE flow implementation
-- JWT signing with RSA keys
-- Public key rotation support via JWKS
-- Secure session management
-- CSRF protection
-
-## Setup
-
-### Prerequisites
-
-- Java 21
-- Maven 3.x
-- ScotAccount client credentials
-- Provision of RSA key pair for JWT signing
-
-### Configuration
-
-1. Place your RSA private key in `src/main/resources/keys/private.pem`
-
-2. Configure application.properties:
-
-```properties
-spring.security.oauth2.client.registration.scotaccount.client-id=your-client-id
-spring.security.oauth2.client.registration.scotaccount.client-secret=your-client-secret
-spring.security.oauth2.client.provider.scotaccount.issuer-uri=https://authz.integration.scotaccount.service.gov.scot
-```
-
-### Building
-
-```bash
-mvn clean install
-```
-
-### Running
-
-```bash
-mvn spring-boot:run
-```
-
-## Usage
-
-1. Access the application at `http://localhost:8080`
-2. Click "Login with ScotAccount"
-3. After authentication, you can:
-   - View your basic account information
-   - Request additional attribute verification
-   - View verified claims
-
-## Security Considerations
-
-- Uses PKCE flow for enhanced security
-- Implements proper CSRF protection
-- Secure session management
-- JWT-based client authentication
-- Public key rotation support
-
-## Error Handling
-
-The application includes comprehensive error handling for:
-
-- Authentication failures
-- Token validation errors
-- Attribute fetch failures
-- Verification flow errors
-
-## Development
-
-### Key Files
-
-- `pom.xml`: Project dependencies and build configuration
-- `application.properties`: Application configuration
-- `SecurityConfig.java`: Security settings
-- `index.html`: Main template
-
-### Testing
-
-Run tests with:
-
-```bash
-mvn test
-```
-
-## Documentation
-
-JavaDoc documentation is available in the `docs/javadoc` directory.
-
-## Version History
-
-- 1.2.0: Added attribute verification flow
-- 1.1.0: Enhanced security features
-- 1.0.0: Initial release with basic authentication
-
-## License
-
-[Your License Information]
-
-## Support
-
-[Your Support Information]
+- **OIDC Authentication**: Secure OpenID Connect authentication with ScotAccount
+- **PKCE Security**: Proof Key for Code Exchange for enhanced security
+- **Verified Attributes**: Retrieval and display of verified user claims
+- **JWT Client Authentication**: Secure client assertion using RSA key pairs
+- **Session Management**: Secure session handling with CSRF protection
+- **GPG45 Compliance**: Support for Government identity assurance levels
 
 ## Prerequisites
 
-- Java 21 or higher
-- Maven 3.6 or higher
-- Access to ScotAccount service (client ID and integration environment access)
-- RSA key pair for client assertions
+Before running this application, ensure you have:
 
-## Project Structure
+- **Java 21** or higher installed
+- **Maven 3.6** or higher installed
+- **ScotAccount client credentials** (client ID and secret)
+- **RSA key pair** for JWT client assertions
+- **Access to ScotAccount integration environment**
 
-```
-scotaccountclient/
-├── src/main/java/uk/aiapplied/scotaccountclient/
-│   ├── ScotaccountClientApplication.java  # Main application class
-│   ├── SecurityConfig.java                # OAuth2/Security configuration
-│   ├── CustomOAuth2AccessTokenResponseClient.java  # Token handling
-│   ├── LoginController.java              # Authentication handling
-│   ├── LogoutController.java             # Logout handling
-│   ├── HomeController.java               # Main application views
-│   ├── AttributeService.java             # User attribute fetching
-│   ├── JwtConfig.java                    # JWT configuration
-│   ├── JwtUtil.java                      # JWT operations
-│   ├── WebConfig.java                    # Web configuration
-│   └── ServletInitializer.java           # Servlet initialization
-└── src/main/resources/
-    ├── application.properties            # Application configuration
-    ├── templates/                        # Thymeleaf templates
-    │   └── home.html                     # Main application view
-    └── keys/                            # RSA key pair
-        ├── private.pem                   # Private key for signing
-        └── public.pem                    # Public key for verification
-```
+## Quick Start Guide
 
-## Component Overview
-
-### Core Components
-
-#### ScotaccountClientApplication
-
-- Main Spring Boot application class
-- Initializes the application context
-- Configures component scanning
-
-#### SecurityConfig
-
-- Configures OAuth2 client settings
-- Sets up security filters and PKCE
-- Manages authorization and token endpoints
-- Configures session management
-- Handles logout configuration
-
-#### CustomOAuth2AccessTokenResponseClient
-
-- Handles OAuth2 token exchange process
-- Manages client assertion inclusion
-- Processes and validates token responses
-- Implements detailed request/response logging
-
-### Controllers
-
-#### LoginController
-
-- Handles authentication success/failure
-- Processes OAuth2/OIDC tokens
-- Manages user session state
-- Implements error handling and logging
-
-#### LogoutController
-
-- Manages user logout process
-- Integrates with ScotAccount logout endpoint
-- Handles post-logout redirects
-
-#### HomeController
-
-- Renders main application view
-- Fetches and displays user attributes
-- Manages authentication state display
-
-### Services and Utilities
-
-#### AttributeService
-
-- Fetches user attributes from ScotAccount
-- Processes JWT claims tokens
-- Handles attribute response parsing
-- Implements error handling
-
-#### JwtUtil
-
-- Manages JWT operations
-- Generates client assertions
-- Handles key loading and caching
-- Implements JWT validation
-
-#### JwtConfig
-
-- Configures JWT components
-- Manages public/private key loading
-- Sets up JWT decoder
-
-#### WebConfig
-
-- Configures web-related beans
-- Sets up RestTemplate for HTTP calls
-
-## Authentication Flow
-
-![image info](./scotaccountclient/docs/diagrams/OAuth2Flow.png)
-
-## Token Exchange Flow
-
-![image info](./scotaccountclient/docs/diagrams/TokenValidationFlow.png)
-
-## Detailed Technical Spring and application data flow
-
-![image info](./scotaccountclient/docs/diagrams/SpringFlow.png)
-
-## Setup Instructions
-
-### 1. Key Setup
-
-1. Place your RSA keys in `src/main/resources/keys/`:
-   - `private.pem`: For signing client assertions
-   - `public.pem`: For token validation
-
-### 2. Configuration
-
-Update `application.properties`:
-
-```properties
-# ScotAccount Configuration
-spring.security.oauth2.client.registration.scotaccount.client-id=your_client_id
-spring.security.oauth2.client.registration.scotaccount.scope=openid gpg-45-medium scotaccount.gpg45.medium scotaccount.address scotaccount.email
-
-# Attributes Endpoint
-scotaccount.attributes.endpoint=https://api.integration.scotaccount.service.gov.scot/attributes
-
-# Session Configuration
-server.servlet.session.timeout=5m
-```
-
-### 3. Building and Running
+### 1. Download and Extract
 
 ```bash
-# Build the project
+# Clone or download the application
+git clone [repository-url]
+cd scotaccountMVP/scotaccountclient
+```
+
+### 2. Configure RSA Keys
+
+Place your RSA key pair in the `src/main/resources/keys/` directory:
+
+```bash
+# Create the keys directory
+mkdir -p src/main/resources/keys
+
+# Copy your RSA keys (ensure they're in PEM format)
+cp your-private-key.pem src/main/resources/keys/private.pem
+cp your-public-key.pem src/main/resources/keys/public.pem
+```
+
+**Important**: Ensure your private key has restricted permissions:
+
+```bash
+chmod 600 src/main/resources/keys/private.pem
+```
+
+### 3. Configure Application Properties
+
+Edit `src/main/resources/application.properties`:
+
+```properties
+# ScotAccount Client Configuration
+spring.security.oauth2.client.registration.scotaccount.client-id=your-client-id
+spring.security.oauth2.client.registration.scotaccount.client-secret=your-client-secret
+spring.security.oauth2.client.registration.scotaccount.scope=openid scotaccount.address scotaccount.gpg45.medium scotaccount.email
+
+# ScotAccount Provider Configuration
+spring.security.oauth2.client.provider.scotaccount.issuer-uri=https://issuer.main.integration.scotaccount.service.gov.scot
+spring.security.oauth2.client.provider.scotaccount.user-info-uri=https://issuer.main.integration.scotaccount.service.gov.scot/attributes/values
+
+# Application Configuration
+server.port=8080
+server.servlet.context-path=/
+```
+
+### 4. Build and Run
+
+```bash
+# Build the application
 mvn clean install
 
 # Run the application
 mvn spring-boot:run
 ```
 
-Access the application at `http://localhost:8080`
+### 5. Access the Application
 
-## Security Considerations
+Open your web browser and navigate to:
 
-1. **Key Management**
+```
+http://localhost:8080
+```
 
-   - Secure key storage
-   - Regular key rotation
-   - Proper file permissions
+## Authentication Flow
 
-2. **Token Security**
+The application implements the OAuth2 authorization code flow with PKCE:
 
-   - JWT validation
-   - Session management
-   - Secure cookie handling
+1. **User Access**: User visits the application homepage
+2. **Login Initiation**: User clicks "Login with ScotAccount"
+3. **ScotAccount Authentication**: User is redirected to ScotAccount for authentication
+4. **Authorization Code**: ScotAccount returns an authorization code
+5. **Token Exchange**: Application exchanges code for access and ID tokens
+6. **Attribute Retrieval**: Application fetches verified user attributes
+7. **User Display**: Application displays user information and verified claims
 
-3. **Error Handling**
-   - Sanitized error messages
-   - Comprehensive logging
-   - Secure failure handling
+## Security Features
 
-## Logging
+### PKCE (Proof Key for Code Exchange)
 
-Configure logging in `application.properties`:
+- Prevents authorization code interception attacks
+- Generates code verifier and challenge for each authentication request
+- Ensures secure token exchange
+
+### JWT Client Authentication
+
+- Uses RSA key pairs for client assertions
+- Signs JWT tokens for API authentication
+- Validates tokens using ScotAccount's JWKS endpoint
+
+### Session Management
+
+- Secure session handling with CSRF protection
+- Session fixation protection
+- Maximum session limits
+- Secure cookie configuration
+
+### Verified Attributes
+
+- Retrieves verified user claims from ScotAccount
+- Supports GPG45 identity assurance levels
+- Displays verified address and identity information
+
+## Project Structure
+
+```
+scotaccountclient/
+├── src/main/java/scot/gov/scotaccountclient/
+│   ├── ScotaccountClientApplication.java    # Main application class
+│   ├── SecurityConfig.java                  # OAuth2 security configuration
+│   ├── HomeController.java                  # Main page controller
+│   ├── LoginController.java                 # Authentication handling
+│   ├── LogoutController.java                # Logout handling
+│   ├── VerificationController.java          # Verification flow
+│   ├── AttributeService.java                # User attribute fetching
+│   ├── JwtUtil.java                        # JWT operations
+│   └── CustomOAuth2AccessTokenResponseClient.java  # Token handling
+├── src/main/resources/
+│   ├── application.properties               # Application configuration
+│   ├── templates/                           # Thymeleaf templates
+│   │   ├── index.html                      # Main application view
+│   │   └── error.html                      # Error page
+│   └── keys/                               # RSA key pair
+│       ├── private.pem                     # Private key for signing
+│       └── public.pem                      # Public key for verification
+└── docs/                                   # Documentation
+    ├── diagrams/                           # Architecture diagrams
+    └── javadoc/                            # API documentation
+```
+
+## Configuration Options
+
+### ScotAccount Integration
 
 ```properties
-logging.level.uk.aiapplied.scotaccountclient=DEBUG
-logging.level.org.springframework.security=DEBUG
-logging.level.org.springframework.web=INFO
+# Client Registration
+spring.security.oauth2.client.registration.scotaccount.client-id=your-client-id
+spring.security.oauth2.client.registration.scotaccount.client-secret=your-client-secret
+
+# Scopes for verified attributes
+spring.security.oauth2.client.registration.scotaccount.scope=openid scotaccount.address scotaccount.gpg45.medium scotaccount.email
+
+# ScotAccount Provider
+spring.security.oauth2.client.provider.scotaccount.issuer-uri=https://issuer.main.integration.scotaccount.service.gov.scot
+spring.security.oauth2.client.provider.scotaccount.user-info-uri=https://issuer.main.integration.scotaccount.service.gov.scot/attributes/values
+```
+
+### Session Configuration
+
+```properties
+# Session timeout (5 minutes)
+server.servlet.session.timeout=5m
+
+# Session management
+spring.session.timeout=5m
+```
+
+### Logging Configuration
+
+```properties
+# Application logging
+logging.level.scot.gov.scotaccountclient=INFO
+logging.level.org.springframework.security=INFO
+
+# OAuth2 debugging (set to DEBUG for troubleshooting)
+logging.level.org.springframework.security.oauth2=INFO
 ```
 
 ## Troubleshooting
 
-1. **Authentication Issues**
+### Common Issues
 
-   - Verify client configuration
-   - Check key permissions
-   - Review token validation
+#### 1. RSA Key Errors
 
-2. **Attribute Fetching Issues**
+**Problem**: `java.security.InvalidKeyException` or key loading failures
+**Solution**:
 
-   - Validate access tokens
-   - Check endpoint configuration
-   - Review client assertions
+- Ensure keys are in PEM format
+- Check file permissions (private key should be 600)
+- Verify key headers are correct
 
-3. **Session Issues**
-   - Check timeout settings
-   - Verify cookie configuration
-   - Review security headers
+#### 2. Authentication Failures
 
-## Support
+**Problem**: 401 Unauthorized or authentication redirect loops
+**Solution**:
 
-For additional support or questions, please refer to the documentation in the `docs/` directory or contact the development team.
+- Verify client ID and secret are correct
+- Check ScotAccount integration environment access
+- Ensure redirect URI is registered with ScotAccount
 
-## Contributing
+#### 3. Attribute Retrieval Issues
 
-1. Fork the repository
-2. Create a feature branch
-3. Submit a pull request with:
-   - Clear description of changes
-   - Updated documentation
-   - Additional tests if needed
+**Problem**: No verified attributes displayed
+**Solution**:
 
-## Documentation
+- Check access token has required scopes
+- Verify client assertion is valid
+- Review ScotAccount service logs
 
-Detailed documentation is available in the following locations:
+#### 4. Session Issues
 
-- API Documentation: `docs/javadoc/apidocs/index.html`
-- Configuration Guide: `docs/configuration.md`
-- Security Documentation: `docs/security.md`
+**Problem**: Session timeouts or CSRF errors
+**Solution**:
 
-## Security Notes
+- Check session timeout configuration
+- Verify CSRF token configuration
+- Review browser cookie settings
 
-- Keep your private key secure and never commit it to version control
-- Client assertion JWTs are generated on-demand and are valid for 6 months
-- Rotate your keys regularly according to security best practices
+### Debug Mode
 
-## Troubleshooting
+To enable detailed logging for troubleshooting:
 
-If you encounter issues:
+```properties
+logging.level.scot.gov.scotaccountclient=DEBUG
+logging.level.org.springframework.security=DEBUG
+logging.level.org.springframework.web=DEBUG
+```
 
-1. Verify that your key files are in the correct location
-2. Check that the keys are in the correct format (PEM)
-3. Review the logs in `target/` directory for detailed error messages
-4. Check the application logs for JWT generation and validation errors
+## Development
 
-## Support
+### Running Tests
 
-For additional support or questions, please refer to the documentation in the `docs/` directory or contact the development team.
+```bash
+# Run all tests
+mvn test
 
-## Key Usage and Token Assertions
+# Run specific test class
+mvn test -Dtest=HomeControllerTest
 
-### RSA Key Pair Usage
+# Generate test coverage report
+mvn test jacoco:report
+```
 
-1. **Private Key (`private.pem`)**
+### Building for Production
 
-   - Used to sign client assertion JWTs
-   - Never transmitted over the network
-   - Required format: PKCS#8 PEM format
-   - Example header: `-----BEGIN PRIVATE KEY-----`
+```bash
+# Create production JAR
+mvn clean package -DskipTests
 
-2. **Public Key (`public.pem`)**
-   - Used by ScotAccount to verify client assertions
-   - Must be registered with ScotAccount service
-   - Required format: X.509 PEM format
-   - Example header: `-----BEGIN PUBLIC KEY-----`
+# Run production JAR
+java -jar target/scotaccountclient-1.0.0.jar
+```
 
-### Client Assertion Generation
+## Security Best Practices
 
-### Token Assertions and Validation
+### Key Management
 
-1. **Client Assertion Claims**
+- Store private keys securely with restricted permissions
+- Rotate keys regularly (recommended every 6 months)
+- Never commit private keys to version control
+- Use environment variables for sensitive configuration
 
-   ```json
-   {
-     "iss": "your_client_id",
-     "sub": "your_client_id",
-     "aud": "https://api.integration.scotaccount.service.gov.scot/token",
-     "exp": 1234567890,
-     "jti": "unique-identifier"
-   }
-   ```
+### Application Security
 
-2. **Assertion Validation**
+- Keep dependencies updated
+- Use HTTPS in production
+- Implement proper error handling
+- Log security events appropriately
 
-   - Issuer (`iss`) must match client ID
-   - Subject (`sub`) must match client ID
-   - Audience (`aud`) must match token endpoint
-   - Expiration (`exp`) must be in the future
-   - JWT ID (`jti`) must be unique
+### ScotAccount Integration
 
-3. **Signature Verification**
+- Register your application with ScotAccount
+- Use appropriate scopes for your use case
+- Implement proper logout flows
+- Handle token refresh appropriately
 
-   - ScotAccount verifies signature using registered public key
-   - Ensures assertion was created by legitimate client
-   - Prevents token forgery and tampering
+## Support and Documentation
 
-4. **Token Lifecycle**
-   - Client assertions are generated for each token request
-   - Assertions expire after 5 minutes
-   - Each assertion has a unique JTI to prevent replay attacks
+### Additional Resources
 
-### Security Best Practices
+- **ScotAccount Documentation**: [ScotAccount Developer Portal]
+- **Spring Security Documentation**: [Spring Security Reference]
+- **OAuth2 Specification**: [RFC 6749]
 
-1. **Key Protection**
+### Getting Help
 
-   ```properties
-   # File permissions (Unix)
-   chmod 600 private.pem  # Read/write for owner only
-   chmod 644 public.pem   # Read for all, write for owner
-   ```
+- Review the troubleshooting section above
+- Check application logs for detailed error messages
+- Consult the ScotAccount integration documentation
+- Contact the development team for technical support
 
-2. **Key Rotation Schedule**
+## Version History
 
-   - Rotate keys every 6 months
-   - Update public key with ScotAccount before expiry
-   - Maintain key version history for audit
+- **1.2.0**: Added attribute verification flow and GPG45 support
+- **1.1.0**: Enhanced security features and PKCE implementation
+- **1.0.0**: Initial release with basic OAuth2/OIDC authentication
 
-3. **Assertion Security**
-   - Short expiration time (5 minutes)
-   - Unique JTI per assertion
-   - Strict audience validation
-   - Claims minimization
+## License
+
+This application is provided as reference implementation for Scottish Government digital services. Please refer to the license file for detailed terms and conditions.
+
+---
+
+**Note**: This application is designed for integration with ScotAccount's integration environment. For production deployment, ensure you have appropriate ScotAccount production credentials and follow Scottish Government security guidelines.
