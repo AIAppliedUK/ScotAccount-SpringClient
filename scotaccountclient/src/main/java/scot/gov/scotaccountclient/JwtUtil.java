@@ -191,6 +191,9 @@ public class JwtUtil {
      */
     public String createJwt(Claims claims, long expirationMs) throws Exception {
         PrivateKey privateKey = loadPrivateKey();
+        if (privateKey == null) {
+            throw new IllegalStateException("Private key not available. Cannot create JWT without private key.");
+        }
         Date now = new Date();
         Date expiration = new Date(now.getTime() + expirationMs);
 
