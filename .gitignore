@@ -1,7 +1,23 @@
 ### Security ###
-# Keep keys directory structure but ignore PEM files
-src/main/resources/keys/**/**.pem
+# Keep keys directory structure but ignore PEM files and other sensitive files
+src/main/resources/keys/**/*.pem
+src/main/resources/keys/**/*.key
+src/main/resources/keys/**/*.crt
+src/main/resources/keys/**/*.p12
+src/main/resources/keys/**/*.pfx
+src/main/resources/keys/**/*.jks
+src/main/resources/keys/**/*.keystore
 !src/main/resources/keys/.gitkeep
+
+# Application properties with sensitive data
+src/main/resources/application-prod.properties
+src/main/resources/application-dev.properties
+src/main/resources/application-local.properties
+
+# Environment-specific configuration
+.env
+.env.local
+.env.production
 
 ### Maven ###
 target/
@@ -43,4 +59,15 @@ HELP.md
 ### macOS ###
 .DS_Store
 .AppleDouble
-.LSOverride 
+.LSOverride
+
+### Logs ###
+*.log
+logs/
+
+### Temporary files ###
+*.tmp
+*.temp
+*.swp
+*.swo
+*~ 

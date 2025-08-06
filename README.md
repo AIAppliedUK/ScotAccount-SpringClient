@@ -54,6 +54,13 @@ cp your-public-key.pem src/main/resources/keys/public.pem
 chmod 600 src/main/resources/keys/private.pem
 ```
 
+**Security Note**: The `.gitignore` file is configured to prevent sensitive files from being committed to the repository. If you accidentally commit sensitive files, run the cleanup script:
+
+```bash
+chmod +x remove-sensitive-files.sh
+./remove-sensitive-files.sh
+```
+
 ### 3. Configure Application Properties
 
 Edit `src/main/resources/application.properties`:
