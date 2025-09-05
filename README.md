@@ -86,11 +86,91 @@ server.servlet.context-path=/
 # Build the application
 mvn clean install
 
-# Run the application
+# Run the application using Spring Boot plugin
 mvn spring-boot:run
+
+# Alternative: Run using Maven profile
+mvn clean install -P run-app
 ```
 
-### 5. Access the Application
+### 5. Run Configurations
+
+The project includes several convenient run configurations:
+
+#### Application Run Configurations
+
+```bash
+# Run the main ScotAccount client application
+mvn spring-boot:run
+
+# Run with Maven profile
+mvn clean install -P run-app
+
+# Run with specific Spring profile
+mvn spring-boot:run -Dspring-boot.run.profiles=local
+```
+
+#### JWK Generator Run Configuration
+
+```bash
+# Run the JWK generator utility
+mvn exec:java -Dexec.mainClass="scot.gov.scotaccountclient.JWKGenerator"
+
+# Run using Maven profile
+mvn clean install -P run-jwk-generator
+
+# Run with custom arguments (if supported by JWKGenerator)
+mvn exec:java -Dexec.mainClass="scot.gov.scotaccountclient.JWKGenerator" -Dexec.args="arg1 arg2"
+```
+
+#### JWK Generator Shell Script
+
+A convenient shell script `genJWK.sh` is provided for easy JWK generation:
+
+```bash
+# Make the script executable (first time only)
+chmod +x genJWK.sh
+
+# Convert RSA private key to JWK for signatures
+./genJWK.sh --file src/main/resources/keys/private.pem --use sig
+
+# Convert EC private key to JWK for encryption
+./genJWK.sh --file test-ec-private.pem --use enc
+
+# Generate public key only
+./genJWK.sh --file private-key.pem --public-only
+
+# Quick conversion with defaults (signature use)
+./genJWK.sh --file private-key.pem
+
+# Show help
+./genJWK.sh --help
+```
+
+**Script Features:**
+
+- Automatic project compilation if needed
+- Input validation for key files and parameters
+- Colored output for better readability
+- Error handling and helpful messages
+- Support for both RSA and EC key types (EC keys must be in PKCS#8 format)
+
+#### VS Code Launch Configurations
+
+The project includes VS Code launch configurations in `.vscode/launch.json`:
+
+- **ScotAccount Client**: Run the main application
+- **Debug ScotAccount Client (Hot Reload)**: Run with hot reload for development
+- **JWKGenerator**: Run the JWK generator utility
+
+To use these configurations:
+
+1. Open the project in VS Code
+2. Go to the Run and Debug panel (Ctrl+Shift+D)
+3. Select the desired configuration from the dropdown
+4. Click the play button or press F5
+
+### 6. Access the Application
 
 Open your web browser and navigate to:
 

@@ -6,7 +6,7 @@
 
     <groupId>scot.gov</groupId>
     <artifactId>scotaccount-java-client</artifactId>
-    <version>0.1.0-SNAPSHOT</version>
+    <version>0.2.0</version>
     <packaging>pom</packaging>
 
     <name>ScotAccount Java Client Example</name>
@@ -49,7 +49,55 @@
                         <release>${java.version}</release>
                     </configuration>
                 </plugin>
+                <plugin>
+                    <groupId>org.springframework.boot</groupId>
+                    <artifactId>spring-boot-maven-plugin</artifactId>
+                    <version>${spring-boot.version}</version>
+                    <executions>
+                        <execution>
+                            <goals>
+                                <goal>repackage</goal>
+                            </goals>
+                        </execution>
+                    </executions>
+                    <configuration>
+                        <mainClass>scot.gov.scotaccountclient.ScotaccountClientApplication</mainClass>
+                    </configuration>
+                </plugin>
+                <plugin>
+                    <groupId>org.codehaus.mojo</groupId>
+                    <artifactId>exec-maven-plugin</artifactId>
+                    <version>3.1.0</version>
+                    <configuration>
+                        <mainClass>scot.gov.scotaccountclient.JWKGenerator</mainClass>
+                    </configuration>
+                </plugin>
             </plugins>
         </pluginManagement>
     </build>
+
+    <profiles>
+        <profile>
+            <id>run-app</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.springframework.boot</groupId>
+                        <artifactId>spring-boot-maven-plugin</artifactId>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+        <profile>
+            <id>run-jwk-generator</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>exec-maven-plugin</artifactId>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project> 

@@ -1,5 +1,10 @@
 package scot.gov.scotaccountclient;
 
+import java.util.HashSet;
+import java.util.List;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -11,13 +16,10 @@ import org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequest
 import org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequestResolver;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
+
 import jakarta.servlet.http.HttpServletRequest;
-import java.util.List;
-import java.util.HashSet;
 
 /**
  * Security configuration for the ScotAccount client application.
@@ -148,7 +150,7 @@ public class SecurityConfig {
                                                                 "/login/oauth2/code/**"))
                                 .authorizeHttpRequests(auth -> auth
                                                 .requestMatchers("/", "/error", "/webjars/**", "/css/**", "/js/**",
-                                                                "/images/**", "/logout")
+                                                                "/images/**", "/logout", "/test/**")
                                                 .permitAll()
                                                 .anyRequest().authenticated())
                                 .oauth2Login(oauth2 -> oauth2

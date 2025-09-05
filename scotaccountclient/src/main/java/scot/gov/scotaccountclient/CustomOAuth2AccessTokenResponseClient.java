@@ -22,7 +22,6 @@ import org.springframework.security.oauth2.core.endpoint.OAuth2AccessTokenRespon
 import org.springframework.security.oauth2.core.endpoint.OAuth2AuthorizationExchange;
 import org.springframework.security.oauth2.core.endpoint.OAuth2AuthorizationResponse;
 import org.springframework.web.client.RestTemplate;
-import org.springframework.web.util.UriComponentsBuilder;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -198,29 +197,38 @@ public class CustomOAuth2AccessTokenResponseClient
                     tokenUri);
             logger.debug("Generated client assertion JWT");
 
-            // Build URL with query parameters
-            UriComponentsBuilder builder = UriComponentsBuilder.fromUriString(tokenUri)
-                    .queryParam("grant_type", "authorization_code")
-                    .queryParam("code", authorizationResponse.getCode())
-                    .queryParam("redirect_uri", authorizationResponse.getRedirectUri())
-                    .queryParam("client_assertion_type", "urn:ietf:params:oauth:client-assertion-type:jwt-bearer")
-                    .queryParam("client_assertion", clientAssertion);
+            // Build request body as form-urlencoded (as per OAuth2 spec)
+            org.springframework.util.MultiValueMap<String, String> requestBody = new org.springframework.util.LinkedMultiValueMap<>();
+            requestBody.add("grant_type", "authorization_code");
+            requestBody.add("code", authorizationResponse.getCode());
+            requestBody.add("redirect_uri", authorizationResponse.getRedirectUri());
+            requestBody.add("client_assertion_type", "urn:ietf:params:oauth:client-assertion-type:jwt-bearer");
+            requestBody.add("client_assertion", clientAssertion);
 
             // Add code_verifier from the authorization request
             String codeVerifier = (String) authorizationExchange.getAuthorizationRequest()
                     .getAttributes().get("code_verifier");
-            builder.queryParam("code_verifier", codeVerifier);
+            requestBody.add("code_verifier", codeVerifier);
 
-            String finalUrl = builder.build().encode().toUriString();
-            logger.debug("Final token request URL: {}", finalUrl);
+            logger.info("=== TOKEN REQUEST DEBUG ===");
+            logger.info("Token endpoint: {}", tokenUri);
+            logger.info("Authorization code: {}", authorizationResponse.getCode());
+            logger.info("Redirect URI: {}", authorizationResponse.getRedirectUri());
+            logger.info("Code verifier: {}", codeVerifier);
+            logger.info("Client assertion (truncated): {}...",
+                    clientAssertion.substring(0, Math.min(50, clientAssertion.length())));
+            logger.info("Request parameters: {}", requestBody);
 
             HttpHeaders headers = new HttpHeaders();
-            HttpEntity<?> request = new HttpEntity<>(headers);
+            headers.setContentType(org.springframework.http.MediaType.APPLICATION_FORM_URLENCODED);
+            HttpEntity<org.springframework.util.MultiValueMap<String, String>> request = new HttpEntity<>(requestBody,
+                    headers);
 
-            logger.debug("Sending token request");
+            logger.info("Request headers: {}", headers);
+            logger.info("=== SENDING TOKEN REQUEST ===");
             @SuppressWarnings("unchecked")
             Map<String, Object> tokenResponse = restTemplate.exchange(
-                    finalUrl,
+                    tokenUri,
                     HttpMethod.POST,
                     request,
                     Map.class).getBody();
@@ -254,7 +262,13 @@ public class CustomOAuth2AccessTokenResponseClient
                     .build();
 
         } catch (Exception e) {
-            logger.error("Error exchanging code for token", e);
+            logger.error("=== TOKEN EXCHANGE ERROR ===");
+            logger.error("Error type: {}", e.getClass().getSimpleName());
+            logger.error("Error message: {}", e.getMessage());
+            if (e.getCause() != null) {
+                logger.error("Cause: {}", e.getCause().getMessage());
+            }
+            logger.error("Full error details:", e);
             throw new RuntimeException("Error exchanging code for token", e);
         }
     }
