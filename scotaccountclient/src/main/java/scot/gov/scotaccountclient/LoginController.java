@@ -100,8 +100,9 @@ public class LoginController implements AuthenticationSuccessHandler, Authentica
     @Override
     public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response,
             Authentication authentication) throws IOException, ServletException {
-        logger.info("Authentication successful for user: {}", authentication.getName());
-        logger.debug("Authentication details: {}", authentication);
+        logger.trace("[OIDC-FLOW] ================ AUTHENTICATION SUCCESS ================");
+        logger.trace("[OIDC-FLOW] Authentication successful for user: {}", authentication.getName());
+        logger.trace("[OIDC-FLOW] Authentication details: {}", authentication);
 
         if (!(authentication instanceof OAuth2AuthenticationToken)) {
             logger.error("Authentication is not an OAuth2AuthenticationToken: {}", authentication.getClass().getName());
@@ -120,7 +121,7 @@ public class LoginController implements AuthenticationSuccessHandler, Authentica
         HttpSession session = request.getSession();
 
         try {
-            logger.debug("Loading authorized client for registration ID: {} and principal: {}",
+            logger.trace("[OIDC-FLOW] Loading authorized client for registration ID: {} and principal: {}",
                     oauth2Auth.getAuthorizedClientRegistrationId(), oauth2Auth.getName());
 
             OAuth2AuthorizedClient authorizedClient = authorizedClientService.loadAuthorizedClient(
@@ -137,17 +138,17 @@ public class LoginController implements AuthenticationSuccessHandler, Authentica
 
             OAuth2AccessToken accessToken = authorizedClient.getAccessToken();
             String tokenValue = accessToken.getTokenValue();
-            logger.debug("Access token obtained successfully");
+            logger.trace("[OIDC-FLOW] Access token obtained successfully");
 
             try {
                 Jwt jwt = jwtDecoder.decode(tokenValue);
                 Map<String, Object> claims = jwt.getClaims();
-                logger.debug("JWT decoded successfully with claims: {}", claims);
+                logger.trace("[OIDC-FLOW] JWT decoded successfully with claims: {}", claims);
 
                 session.setAttribute("access_token", tokenValue);
                 session.setAttribute("access_token_claims", claims);
                 session.setAttribute("id_token", oidcUser.getIdToken().getTokenValue());
-                logger.info("Session attributes set successfully");
+                logger.trace("[OIDC-FLOW] Session attributes set successfully");
             } catch (Exception e) {
                 logger.error("Error decoding JWT", e);
                 session.setAttribute("token_error", "Access token error: Invalid token");
@@ -173,14 +174,15 @@ public class LoginController implements AuthenticationSuccessHandler, Authentica
     @Override
     public void onAuthenticationFailure(HttpServletRequest request, HttpServletResponse response,
             AuthenticationException exception) throws IOException, ServletException {
-        logger.error("Authentication failed", exception);
-        logger.error("Error message: {}", exception.getMessage());
-        logger.error("Error type: {}", exception.getClass().getName());
+        logger.trace("[OIDC-FLOW] ================ AUTHENTICATION FAILURE ================");
+        logger.trace("[OIDC-FLOW] Authentication failed", exception);
+        logger.trace("[OIDC-FLOW] Error message: {}", exception.getMessage());
+        logger.trace("[OIDC-FLOW] Error type: {}", exception.getClass().getName());
         if (exception.getCause() != null) {
-            logger.error("Root cause: {}", exception.getCause().getMessage());
+            logger.trace("[OIDC-FLOW] Root cause: {}", exception.getCause().getMessage());
         }
-        logger.error("Request URI: {}", request.getRequestURI());
-        logger.error("Query string: {}", request.getQueryString());
+        logger.trace("[OIDC-FLOW] Request URI: {}", request.getRequestURI());
+        logger.trace("[OIDC-FLOW] Query string: {}", request.getQueryString());
 
         HttpSession session = request.getSession();
         session.setAttribute("auth_error", exception.getMessage());

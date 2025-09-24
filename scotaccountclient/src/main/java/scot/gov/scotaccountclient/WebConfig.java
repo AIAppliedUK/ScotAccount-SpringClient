@@ -48,7 +48,7 @@ public class WebConfig {
      * 
      * <p>
      * This implementation includes logging interceptors to log all HTTP
-     * requests and responses, which is useful for debugging.
+     * requests and responses, with special markers for ScotAccount calls.
      * </p>
      *
      * @return a configured RestTemplate instance with logging capabilities
@@ -65,24 +65,49 @@ public class WebConfig {
 
         // Add logging interceptor
         ClientHttpRequestInterceptor loggingInterceptor = (request, body, execution) -> {
-            // Log the request
-            logger.debug("=========================== HTTP REQUEST ===========================");
-            logger.debug("URI: {}", request.getURI());
-            logger.debug("Method: {}", request.getMethod());
-            logger.debug("Headers: {}", request.getHeaders());
-            logger.debug("Request body: {}", new String(body, StandardCharsets.UTF_8));
-            logger.debug("=============================================================");
+            String uri = request.getURI().toString();
+            boolean isScotAccountCall = uri.contains("scotaccount.service.gov.scot");
+
+            if (isScotAccountCall) {
+                // Log the request with ScotAccount markers
+                logger.trace("[SCOTACCOUNT-HTTP] ================ SCOTACCOUNT HTTP REQUEST ================");
+                logger.trace("[SCOTACCOUNT-HTTP] URI: {}", uri);
+                logger.trace("[SCOTACCOUNT-HTTP] Method: {}", request.getMethod());
+                logger.trace("[SCOTACCOUNT-HTTP] Headers: {}", request.getHeaders());
+                logger.trace("[SCOTACCOUNT-HTTP] Request body: {}", new String(body, StandardCharsets.UTF_8));
+                logger.trace("[SCOTACCOUNT-HTTP] =================================================================");
+            } else {
+                // Log other requests with standard markers
+                logger.debug("=========================== HTTP REQUEST ===========================");
+                logger.debug("URI: {}", uri);
+                logger.debug("Method: {}", request.getMethod());
+                logger.debug("Headers: {}", request.getHeaders());
+                logger.debug("Request body: {}", new String(body, StandardCharsets.UTF_8));
+                logger.debug("=============================================================");
+            }
+
             // Execute the request
             var response = execution.execute(request, body);
 
-            // Log the response
-            logger.debug("========================== HTTP RESPONSE ==========================");
-            logger.debug("Status code: {}", response.getStatusCode());
-            logger.debug("Headers: {}", response.getHeaders());
+            if (isScotAccountCall) {
+                // Log the response with ScotAccount markers
+                logger.trace("[SCOTACCOUNT-HTTP] ================ SCOTACCOUNT HTTP RESPONSE ================");
+                logger.trace("[SCOTACCOUNT-HTTP] Status code: {}", response.getStatusCode());
+                logger.trace("[SCOTACCOUNT-HTTP] Headers: {}", response.getHeaders());
 
-            byte[] responseBody = response.getBody().readAllBytes();
-            logger.debug("Response body: {}", new String(responseBody, StandardCharsets.UTF_8));
-            logger.debug("=============================================================");
+                byte[] responseBody = response.getBody().readAllBytes();
+                logger.trace("[SCOTACCOUNT-HTTP] Response body: {}", new String(responseBody, StandardCharsets.UTF_8));
+                logger.trace("[SCOTACCOUNT-HTTP] =================================================================");
+            } else {
+                // Log other responses with standard markers
+                logger.debug("========================== HTTP RESPONSE ==========================");
+                logger.debug("Status code: {}", response.getStatusCode());
+                logger.debug("Headers: {}", response.getHeaders());
+
+                byte[] responseBody = response.getBody().readAllBytes();
+                logger.debug("Response body: {}", new String(responseBody, StandardCharsets.UTF_8));
+                logger.debug("=============================================================");
+            }
 
             return response;
         };

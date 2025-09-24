@@ -28,8 +28,7 @@ public class CustomOAuth2AccessTokenResponseClientTest {
 
     @BeforeEach
     void setUp() {
-        tokenResponseClient = new CustomOAuth2AccessTokenResponseClient(jwtUtil);
-        ReflectionTestUtils.setField(tokenResponseClient, "restTemplate", restTemplate);
+        tokenResponseClient = new CustomOAuth2AccessTokenResponseClient(jwtUtil, restTemplate);
         ReflectionTestUtils.setField(tokenResponseClient, "objectMapper", objectMapper);
     }
 

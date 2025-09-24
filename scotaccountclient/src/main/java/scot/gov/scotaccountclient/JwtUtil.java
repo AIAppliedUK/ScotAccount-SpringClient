@@ -75,9 +75,8 @@ public class JwtUtil {
     /** Logger for the JwtUtil class. */
     private static final Logger logger = LoggerFactory.getLogger(JwtUtil.class);
 
-    /** Path to the private key file used for JWT signing. */
-    @Value("${scotaccount.private-key-path:keys/private.pem}")
-    private String privateKeyPath;
+    /** Configuration properties for ScotAccount integration. */
+    private final ScotAccountProperties scotAccountProperties;
 
     /** HTTP client for making requests to the JWKS endpoint. */
     private final RestTemplate restTemplate;
@@ -93,10 +92,16 @@ public class JwtUtil {
     private String jwksUrl;
 
     /**
-     * Constructs a new JwtUtil instance with a default RestTemplate.
+     * Constructs a new JwtUtil instance with the required dependencies.
+     * 
+     * @param scotAccountProperties Configuration properties for ScotAccount
+     *                              integration
+     * @param restTemplate          HTTP client for making requests to the JWKS
+     *                              endpoint
      */
-    public JwtUtil() {
-        this.restTemplate = new RestTemplate();
+    public JwtUtil(ScotAccountProperties scotAccountProperties, RestTemplate restTemplate) {
+        this.scotAccountProperties = scotAccountProperties;
+        this.restTemplate = restTemplate;
     }
 
     /**
@@ -151,7 +156,7 @@ public class JwtUtil {
                     // Cache the public key for future use
                     publicKeyCache.put(keyId, publicKey);
 
-                    logger.debug("Successfully loaded and cached public key for kid: {}", keyId);
+                    logger.trace("[OIDC-FLOW] Successfully loaded and cached public key for kid: {}", keyId);
                     return publicKey;
                 } catch (Exception e) {
                     logger.error("Failed to parse JWK for kid: {}", keyId, e);
@@ -179,6 +184,7 @@ public class JwtUtil {
             return privateKey;
         }
 
+        String privateKeyPath = scotAccountProperties.getPrivateKeyPath();
         try (InputStream is = getClass().getClassLoader().getResourceAsStream(privateKeyPath)) {
             if (is == null) {
                 throw new IOException("Private key file not found: " + privateKeyPath);
@@ -186,21 +192,36 @@ public class JwtUtil {
             String privateKeyContent = new String(is.readAllBytes());
 
             if (privateKeyContent.contains("-----BEGIN EC PRIVATE KEY-----")) {
-                // Handle EC Private Key in the old format
-                logger.debug("Loading EC private key in old format");
-                String ecPrivateKeyPEM = privateKeyContent
-                        .replace("-----BEGIN EC PRIVATE KEY-----", "")
-                        .replace("-----END EC PRIVATE KEY-----", "")
+                // Handle EC Private Key format (including files with EC PARAMETERS)
+                logger.trace("[OIDC-FLOW] Loading EC private key");
+
+                // Extract only the EC PRIVATE KEY section, ignoring EC PARAMETERS if present
+                String[] sections = privateKeyContent.split("-----BEGIN EC PRIVATE KEY-----");
+                if (sections.length < 2) {
+                    throw new IOException("Invalid EC private key format - missing EC PRIVATE KEY section");
+                }
+
+                String ecPrivateKeyPEM = sections[1]
+                        .split("-----END EC PRIVATE KEY-----")[0]
                         .replaceAll("\\s", "");
 
                 try {
                     byte[] ecEncoded = Base64.getDecoder().decode(ecPrivateKeyPEM);
 
-                    // Parse the EC private key from the old format
-                    // The old EC format is a simple ASN.1 structure containing just the private key
-                    // value
-                    // We need to extract the private key value and create an ECPrivateKeySpec
+                    // Try PKCS#8 format first (most common and reliable)
+                    try {
+                        KeyFactory keyFactory = KeyFactory.getInstance("EC");
+                        PKCS8EncodedKeySpec keySpec = new PKCS8EncodedKeySpec(ecEncoded);
+                        privateKey = keyFactory.generatePrivate(keySpec);
+                        logger.trace("[OIDC-FLOW] Successfully loaded EC private key as PKCS#8");
+                        return privateKey;
+                    } catch (InvalidKeySpecException e) {
+                        logger.trace("[OIDC-FLOW] PKCS#8 parsing failed, trying legacy EC format");
+                    }
 
+                    // Fallback to legacy EC format parsing
+                    // The legacy EC format is a simple ASN.1 structure containing just the private
+                    // key value
                     // For P-256 curve, the private key is typically 32 bytes
                     // The ASN.1 structure is: SEQUENCE { INTEGER privateKey }
                     if (ecEncoded.length >= 3 && ecEncoded[0] == 0x30) { // SEQUENCE
@@ -242,22 +263,13 @@ public class JwtUtil {
                             KeyFactory keyFactory = KeyFactory.getInstance("EC");
                             privateKey = keyFactory.generatePrivate(keySpec);
 
-                            logger.debug("Successfully loaded EC private key in old format");
+                            logger.trace("[OIDC-FLOW] Successfully loaded EC private key in legacy format");
                             return privateKey;
                         }
                     }
 
-                    // If the above parsing fails, try the PKCS#8 approach as fallback
-                    try {
-                        KeyFactory keyFactory = KeyFactory.getInstance("EC");
-                        PKCS8EncodedKeySpec keySpec = new PKCS8EncodedKeySpec(ecEncoded);
-                        privateKey = keyFactory.generatePrivate(keySpec);
-                        logger.debug("Successfully loaded EC private key as PKCS#8");
-                        return privateKey;
-                    } catch (InvalidKeySpecException e) {
-                        logger.error("Failed to parse EC private key in old format");
-                        throw new IOException("Unable to parse EC private key in old format", e);
-                    }
+                    logger.error("Failed to parse EC private key in any supported format");
+                    throw new IOException("Unable to parse EC private key - unsupported format");
 
                 } catch (IllegalArgumentException e) {
                     logger.error("Failed to decode Base64 for EC private key");
@@ -266,7 +278,7 @@ public class JwtUtil {
 
             } else if (privateKeyContent.contains("-----BEGIN PRIVATE KEY-----")) {
                 // Handle PKCS#8 format (works for both RSA and EC keys)
-                logger.debug("Loading private key in PKCS#8 format");
+                logger.trace("[OIDC-FLOW] Loading private key in PKCS#8 format");
                 String privateKeyPEM = privateKeyContent
                         .replace("-----BEGIN PRIVATE KEY-----", "")
                         .replace("-----END PRIVATE KEY-----", "")
@@ -275,12 +287,12 @@ public class JwtUtil {
                 try {
                     byte[] encoded = Base64.getDecoder().decode(privateKeyPEM);
                     String keyType = detectKeyType(encoded);
-                    logger.debug("Detected key type: {}", keyType);
+                    logger.trace("[OIDC-FLOW] Detected key type: {}", keyType);
 
                     KeyFactory keyFactory = KeyFactory.getInstance(keyType);
                     PKCS8EncodedKeySpec keySpec = new PKCS8EncodedKeySpec(encoded);
                     privateKey = keyFactory.generatePrivate(keySpec);
-                    logger.debug("Successfully loaded {} private key", keyType);
+                    logger.trace("[OIDC-FLOW] Successfully loaded {} private key", keyType);
                     return privateKey;
                 } catch (IllegalArgumentException e) {
                     logger.error("Failed to decode Base64 for PKCS#8 private key");
@@ -289,7 +301,7 @@ public class JwtUtil {
 
             } else if (privateKeyContent.contains("-----BEGIN RSA PRIVATE KEY-----")) {
                 // Handle RSA Private Key in the old format (for backward compatibility)
-                logger.debug("Loading RSA private key in old format");
+                logger.trace("[OIDC-FLOW] Loading RSA private key in old format");
                 String rsaPrivateKeyPEM = privateKeyContent
                         .replace("-----BEGIN RSA PRIVATE KEY-----", "")
                         .replace("-----END RSA PRIVATE KEY-----", "")
@@ -300,7 +312,7 @@ public class JwtUtil {
                     KeyFactory keyFactory = KeyFactory.getInstance("RSA");
                     PKCS8EncodedKeySpec keySpec = new PKCS8EncodedKeySpec(rsaEncoded);
                     privateKey = keyFactory.generatePrivate(keySpec);
-                    logger.debug("Successfully loaded RSA private key");
+                    logger.trace("[OIDC-FLOW] Successfully loaded RSA private key");
                     return privateKey;
                 } catch (IllegalArgumentException e) {
                     logger.error("Failed to decode Base64 for RSA private key");

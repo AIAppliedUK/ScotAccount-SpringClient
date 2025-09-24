@@ -132,7 +132,7 @@ A convenient shell script `genJWK.sh` is provided for easy JWK generation:
 chmod +x genJWK.sh
 
 # Convert RSA private key to JWK for signatures
-./genJWK.sh --file src/main/resources/keys/private.pem --use sig
+./genJWK.sh --file scotaccountclient/src/main/resources/keys/ec_private_key.pem --use sig
 
 # Convert EC private key to JWK for encryption
 ./genJWK.sh --file test-ec-private.pem --use enc

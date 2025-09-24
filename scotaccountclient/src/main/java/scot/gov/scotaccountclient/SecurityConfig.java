@@ -16,6 +16,7 @@ import org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequest
 import org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequestResolver;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
+import org.springframework.web.client.RestTemplate;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
@@ -58,8 +59,8 @@ public class SecurityConfig {
         /** Repository for OAuth2 client registrations */
         private final ClientRegistrationRepository clientRegistrationRepository;
 
-        /** JWT utility for token handling */
-        private final JwtUtil jwtUtil;
+        /** Configuration properties for ScotAccount integration */
+        private final ScotAccountProperties scotAccountProperties;
 
         /**
          * Constructs a new SecurityConfig with the required dependencies.
@@ -67,13 +68,13 @@ public class SecurityConfig {
          * @param clientRegistrationRepository Repository for OAuth2 client
          *                                     registrations, used for client
          *                                     configuration
-         * @param jwtUtil                      JWT utility for token operations and
-         *                                     validation
+         * @param scotAccountProperties        Configuration properties for ScotAccount
+         *                                     integration
          */
         public SecurityConfig(ClientRegistrationRepository clientRegistrationRepository,
-                        JwtUtil jwtUtil) {
+                        ScotAccountProperties scotAccountProperties) {
                 this.clientRegistrationRepository = clientRegistrationRepository;
-                this.jwtUtil = jwtUtil;
+                this.scotAccountProperties = scotAccountProperties;
         }
 
         /**
@@ -107,17 +108,20 @@ public class SecurityConfig {
                                                                         // Use verification scopes from session
                                                                         builder.scopes(new HashSet<>(
                                                                                         verificationScopes));
-                                                                        logger.debug("Configuring OAuth2 request with scopes: {}",
+                                                                        logger.trace("[OIDC-FLOW] ================ AUTHORIZATION REQUEST BUILDING ================");
+                                                                        logger.trace("[OIDC-FLOW] Configuring OAuth2 request with scopes: {}",
                                                                                         verificationScopes);
                                                                 } else {
                                                                         // Default to openid scope for authentication
                                                                         builder.scope("openid");
-                                                                        logger.debug("Configuring OAuth2 request with scope: openid");
+                                                                        logger.trace("[OIDC-FLOW] ================ AUTHORIZATION REQUEST BUILDING ================");
+                                                                        logger.trace("[OIDC-FLOW] Configuring OAuth2 request with scope: openid");
                                                                 }
                                                         } else {
                                                                 // Default to openid scope if no request context
                                                                 builder.scope("openid");
-                                                                logger.debug("No request context available, using default scope: openid");
+                                                                logger.trace("[OIDC-FLOW] ================ AUTHORIZATION REQUEST BUILDING ================");
+                                                                logger.trace("[OIDC-FLOW] No request context available, using default scope: openid");
                                                         }
                                                 }));
 
@@ -127,22 +131,26 @@ public class SecurityConfig {
         /**
          * Creates a custom OAuth2 access token response client.
          *
+         * @param restTemplate The global RestTemplate bean for HTTP requests
          * @return The configured CustomOAuth2AccessTokenResponseClient
          */
         @Bean
-        public CustomOAuth2AccessTokenResponseClient customAccessTokenResponseClient() {
-                return new CustomOAuth2AccessTokenResponseClient(jwtUtil);
+        public CustomOAuth2AccessTokenResponseClient customAccessTokenResponseClient(RestTemplate restTemplate) {
+                // Create JwtUtil with proper dependencies
+                JwtUtil jwtUtilWithRestTemplate = new JwtUtil(scotAccountProperties, restTemplate);
+                return new CustomOAuth2AccessTokenResponseClient(jwtUtilWithRestTemplate, restTemplate);
         }
 
         /**
          * Configures the security filter chain with OAuth2 and JWT settings.
          *
-         * @param http The HttpSecurity object to configure
+         * @param http         The HttpSecurity object to configure
+         * @param restTemplate The global RestTemplate bean for HTTP requests
          * @return The configured SecurityFilterChain
          * @throws Exception if security configuration fails
          */
         @Bean
-        public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+        public SecurityFilterChain securityFilterChain(HttpSecurity http, RestTemplate restTemplate) throws Exception {
                 http
                                 .csrf(csrf -> csrf
                                                 .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
@@ -160,9 +168,38 @@ public class SecurityConfig {
                                                                                                 clientRegistrationRepository)))
                                                 .tokenEndpoint(token -> token
                                                                 .accessTokenResponseClient(this
-                                                                                .customAccessTokenResponseClient()))
+                                                                                .customAccessTokenResponseClient(
+                                                                                                restTemplate)))
                                                 .loginPage("/")
-                                                .defaultSuccessUrl("/", true))
+                                                .defaultSuccessUrl("/", true)
+                                                .failureHandler((request, response, exception) -> {
+                                                        logger.trace("[OIDC-FLOW] ================ AUTHENTICATION FAILURE ================");
+                                                        logger.trace("[OIDC-FLOW] Authentication failed", exception);
+                                                        logger.trace("[OIDC-FLOW] Error message: {}",
+                                                                        exception.getMessage());
+                                                        logger.trace("[OIDC-FLOW] Error type: {}",
+                                                                        exception.getClass().getName());
+                                                        if (exception.getCause() != null) {
+                                                                logger.trace("[OIDC-FLOW] Root cause: {}",
+                                                                                exception.getCause().getMessage());
+                                                        }
+                                                        logger.trace("[OIDC-FLOW] Request URI: {}",
+                                                                        request.getRequestURI());
+                                                        logger.trace("[OIDC-FLOW] Query string: {}",
+                                                                        request.getQueryString());
+                                                        response.sendRedirect("/?error=true&message=" +
+                                                                        java.net.URLEncoder.encode(
+                                                                                        exception.getMessage(),
+                                                                                        java.nio.charset.StandardCharsets.UTF_8));
+                                                })
+                                                .successHandler((request, response, authentication) -> {
+                                                        logger.trace("[OIDC-FLOW] ================ AUTHENTICATION SUCCESS ================");
+                                                        logger.trace("[OIDC-FLOW] Authentication successful for user: {}",
+                                                                        authentication.getName());
+                                                        logger.trace("[OIDC-FLOW] Authentication details: {}",
+                                                                        authentication);
+                                                        response.sendRedirect("/");
+                                                }))
                                 .sessionManagement(session -> session
                                                 .sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)
                                                 .invalidSessionUrl("/login?invalid")

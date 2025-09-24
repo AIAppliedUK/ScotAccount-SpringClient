@@ -24,7 +24,12 @@ public class TestConfig {
     }
 
     @Bean
-    public JwtUtil jwtUtil() {
-        return new JwtUtil();
+    public ScotAccountProperties scotAccountProperties() {
+        return new ScotAccountProperties();
+    }
+
+    @Bean
+    public JwtUtil jwtUtil(ScotAccountProperties scotAccountProperties, RestTemplate restTemplate) {
+        return new JwtUtil(scotAccountProperties, restTemplate);
     }
 }

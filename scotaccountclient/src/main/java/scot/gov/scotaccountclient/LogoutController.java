@@ -57,6 +57,37 @@ public class LogoutController {
         return "redirect:/";
     }
 
+    /**
+     * Handles OIDC backchannel logout requests from the Identity Provider.
+     * Invalidates the current HTTP session (if any) and logs the event clearly.
+     * Returns a redirect to the home page.
+     */
+    @PostMapping({ "/back-channel", "/backchannel" })
+    public String backchannelLogout(HttpServletRequest request) {
+        logger.info("[OIDC-BACKCHANNEL-LOGOUT] Backchannel logout received at {}", request.getRequestURI());
+        String logoutToken = request.getParameter("logout_token");
+        if (logoutToken != null) {
+            logger.debug("[OIDC-BACKCHANNEL-LOGOUT] logout_token present (truncated): {}",
+                    logoutToken.substring(0, Math.min(40, logoutToken.length())) + "...");
+        } else {
+            logger.debug("[OIDC-BACKCHANNEL-LOGOUT] No logout_token parameter provided");
+        }
+
+        HttpSession session = request.getSession(false);
+        if (session != null) {
+            logger.info("[OIDC-BACKCHANNEL-LOGOUT] Invalidating session: {}", session.getId());
+            try {
+                session.invalidate();
+            } catch (IllegalStateException ignored) {
+                logger.debug("[OIDC-BACKCHANNEL-LOGOUT] Session already invalidated");
+            }
+        } else {
+            logger.info("[OIDC-BACKCHANNEL-LOGOUT] No active session found to invalidate");
+        }
+
+        return "redirect:/";
+    }
+
     private String handleLogout(HttpServletRequest request, HttpServletResponse response) {
         try {
             logger.info("Initiating logout process for {} request to {}", request.getMethod(), request.getRequestURI());
