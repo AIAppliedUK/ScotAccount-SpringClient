@@ -10,11 +10,14 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.security.oauth2.client.web.DefaultOAuth2AuthorizationRequestResolver;
 import org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequestCustomizers;
 import org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequestResolver;
+import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.access.AccessDeniedHandler;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.context.request.RequestContextHolder;
@@ -142,6 +145,37 @@ public class SecurityConfig {
         }
 
         /**
+         * Custom access denied handler that logs access denials without stack traces.
+         *
+         * @return The configured AccessDeniedHandler
+         */
+        @Bean
+        public AccessDeniedHandler accessDeniedHandler() {
+                return (request, response, accessDeniedException) -> {
+                        String principal = request.getUserPrincipal() != null
+                                ? request.getUserPrincipal().getName()
+                                : "anonymous";
+                        logger.debug("Access denied for user '{}' attempting to access: {}",
+                                principal, request.getRequestURI());
+                        response.sendRedirect("/");
+                };
+        }
+
+        /**
+         * Custom authentication entry point that logs authentication failures without stack traces.
+         *
+         * @return The configured AuthenticationEntryPoint
+         */
+        @Bean
+        public AuthenticationEntryPoint authenticationEntryPoint() {
+                return (request, response, authException) -> {
+                        logger.debug("User not authenticated, redirecting to login from: {}",
+                                request.getRequestURI());
+                        response.sendRedirect("/");
+                };
+        }
+
+        /**
          * Configures the security filter chain with OAuth2 and JWT settings.
          *
          * @param http         The HttpSecurity object to configure
@@ -155,12 +189,18 @@ public class SecurityConfig {
                                 .csrf(csrf -> csrf
                                                 .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
                                                 .ignoringRequestMatchers("/oauth2/authorization/**",
-                                                                "/login/oauth2/code/**"))
+                                                                "/login/oauth2/code/**",
+                                                                "/logout/backchannel",
+                                                                "/logout/back-channel"))
                                 .authorizeHttpRequests(auth -> auth
                                                 .requestMatchers("/", "/error", "/webjars/**", "/css/**", "/js/**",
-                                                                "/images/**", "/logout", "/test/**")
+                                                                "/images/**", "/logout", "/test/**",
+                                                                "/logout/backchannel", "/logout/back-channel")
                                                 .permitAll()
                                                 .anyRequest().authenticated())
+                                .exceptionHandling(exceptions -> exceptions
+                                                .accessDeniedHandler(accessDeniedHandler())
+                                                .authenticationEntryPoint(authenticationEntryPoint()))
                                 .oauth2Login(oauth2 -> oauth2
                                                 .authorizationEndpoint(authorization -> authorization
                                                                 .authorizationRequestResolver(

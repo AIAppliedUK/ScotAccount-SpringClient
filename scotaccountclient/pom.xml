@@ -173,10 +173,15 @@
 			<version>9.37.3</version>
 		</dependency>
 		
-		<!-- BouncyCastle for proper EC point multiplication -->
+		<!-- BouncyCastle for proper EC point multiplication and PEM parsing -->
 		<dependency>
 			<groupId>org.bouncycastle</groupId>
 			<artifactId>bcprov-jdk18on</artifactId>
+			<version>1.78.1</version>
+		</dependency>
+		<dependency>
+			<groupId>org.bouncycastle</groupId>
+			<artifactId>bcpkix-jdk18on</artifactId>
 			<version>1.78.1</version>
 		</dependency>
 		<dependency>

@@ -10,7 +10,6 @@ import java.security.interfaces.RSAPrivateKey;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.util.Base64;
 import java.util.Date;
-import java.util.UUID;
 
 import org.bouncycastle.jce.ECNamedCurveTable;
 import org.bouncycastle.jce.spec.ECNamedCurveParameterSpec;
@@ -335,8 +334,18 @@ public class JWKGenerator {
         RSAKey jwk = new RSAKey.Builder(publicKey)
                 .privateKey(privateKey)
                 .keyUse(KeyUse.parse(keyUse)) // indicate the intended use of the key (optional)
-                .keyID(UUID.randomUUID().toString()) // give the key a unique ID (optional)
                 .issueTime(new Date()) // issued-at timestamp (optional)
+                .build();
+
+        // Generate kid using JWK thumbprint (RFC 7638) - same method as JwtUtil
+        String kid = jwk.computeThumbprint().toString();
+
+        // Rebuild with the computed kid
+        jwk = new RSAKey.Builder(publicKey)
+                .privateKey(privateKey)
+                .keyUse(KeyUse.parse(keyUse))
+                .keyID(kid)
+                .issueTime(new Date())
                 .build();
 
         // Output the private and public RSA JWK parameters
@@ -377,8 +386,18 @@ public class JWKGenerator {
         ECKey jwk = new ECKey.Builder(curve, publicKeyX, publicKeyY)
                 .privateKey(privateKey)
                 .keyUse(KeyUse.parse(keyUse)) // indicate the intended use of the key (optional)
-                .keyID(UUID.randomUUID().toString()) // give the key a unique ID (optional)
                 .issueTime(new Date()) // issued-at timestamp (optional)
+                .build();
+
+        // Generate kid using JWK thumbprint (RFC 7638) - same method as JwtUtil
+        String kid = jwk.computeThumbprint().toString();
+
+        // Rebuild with the computed kid
+        jwk = new ECKey.Builder(curve, publicKeyX, publicKeyY)
+                .privateKey(privateKey)
+                .keyUse(KeyUse.parse(keyUse))
+                .keyID(kid)
+                .issueTime(new Date())
                 .build();
 
         // Output the private and public EC JWK parameters
