@@ -33,7 +33,7 @@ Before running this application, ensure you have:
 ```bash
 # Clone or download the application
 git clone [repository-url]
-cd scotaccountMVP/scotaccountclient
+cd ScotAccount-SpringClient/scotaccountclient
 ```
 
 ### 2. Configure Cryptographic Keys (RSA or EC)
@@ -56,9 +56,6 @@ openssl ecparam -genkey -name prime256v1 -out src/main/resources/keys/ec_private
 
 # Extract public key
 openssl ec -in src/main/resources/keys/ec_private_key.pem -pubout -out src/main/resources/keys/ec_public_key.pem
-
-# Generate public JWK for ScotAccount registration (see JWK Registration section below)
-./genJWK.sh --file src/main/resources/keys/ec_private_key.pem --public-only
 ```
 
 #### Option B: Using RSA Keys (RS256)
@@ -73,8 +70,6 @@ openssl genrsa -out src/main/resources/keys/rsa_private_key.pem 2048
 # Extract public key
 openssl rsa -in src/main/resources/keys/rsa_private_key.pem -pubout -out src/main/resources/keys/rsa_public_key.pem
 
-# Generate public JWK for ScotAccount registration (see JWK Registration section below)
-./genJWK.sh --file src/main/resources/keys/rsa_private_key.pem --public-only
 ```
 
 #### Key Configuration in application.properties
@@ -109,7 +104,6 @@ Edit `src/main/resources/application.properties`:
 ```properties
 # ScotAccount Client Configuration
 spring.security.oauth2.client.registration.scotaccount.client-id=your-client-id
-spring.security.oauth2.client.registration.scotaccount.client-secret=your-client-secret
 spring.security.oauth2.client.registration.scotaccount.scope=openid scotaccount.address scotaccount.gpg45.medium scotaccount.email
 
 # ScotAccount Provider Configuration
@@ -151,19 +145,6 @@ mvn clean install -P run-app
 mvn spring-boot:run -Dspring-boot.run.profiles=local
 ```
 
-#### JWK Generator Run Configuration
-
-```bash
-# Run the JWK generator utility
-mvn exec:java -Dexec.mainClass="scot.gov.scotaccountclient.JWKGenerator"
-
-# Run using Maven profile
-mvn clean install -P run-jwk-generator
-
-# Run with custom arguments (if supported by JWKGenerator)
-mvn exec:java -Dexec.mainClass="scot.gov.scotaccountclient.JWKGenerator" -Dexec.args="arg1 arg2"
-```
-
 #### JWK Generator Shell Script
 
 A convenient shell script `genJWK.sh` is provided for easy JWK generation:
@@ -171,15 +152,6 @@ A convenient shell script `genJWK.sh` is provided for easy JWK generation:
 ```bash
 # Make the script executable (first time only)
 chmod +x genJWK.sh
-
-# Convert EC private key to public JWK for ScotAccount registration
-./genJWK.sh --file scotaccountclient/src/main/resources/keys/ec_private_key.pem --public-only
-
-# Convert RSA private key to public JWK for ScotAccount registration
-./genJWK.sh --file scotaccountclient/src/main/resources/keys/rsa_private_key.pem --public-only
-
-# Generate full JWK (private and public)
-./genJWK.sh --file private-key.pem --use sig
 
 # Show help
 ./genJWK.sh --help
@@ -270,7 +242,7 @@ This will output a JSON object like:
 Open your web browser and navigate to:
 
 ```
-http://localhost:8080
+http://localhost:8090
 ```
 
 ## Authentication Flow
