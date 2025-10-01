@@ -1,5 +1,12 @@
 package scot.gov.scotaccountclient;
 
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.client.OAuth2AuthorizedClient;
 import org.springframework.security.oauth2.client.OAuth2AuthorizedClientService;
@@ -11,13 +18,8 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
+
 import jakarta.servlet.http.HttpSession;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.HashSet;
-import java.util.Set;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Controller for handling the verification flow after initial authentication.
@@ -136,7 +138,8 @@ public class VerificationController {
             }
             session.setAttribute(SESSION_SCOPES_KEY, verificationScopes);
 
-            logger.info("Initiating verification flow for user {} with scopes: {}",
+            logger.trace("[OIDC-FLOW] ================ VERIFICATION FLOW INITIATED ================");
+            logger.trace("[OIDC-FLOW] Initiating verification flow for user {} with scopes: {}",
                     authentication.getName(), verificationScopes);
 
             return "redirect:/oauth2/authorization/scotaccount";

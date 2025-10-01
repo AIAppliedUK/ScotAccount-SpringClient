@@ -2,7 +2,6 @@ package scot.gov.scotaccountclient;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
-import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
 
@@ -11,9 +10,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
-import org.springframework.http.client.BufferingClientHttpRequestFactory;
-import org.springframework.http.client.ClientHttpRequestInterceptor;
-import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.security.oauth2.client.endpoint.OAuth2AccessTokenResponseClient;
 import org.springframework.security.oauth2.client.endpoint.OAuth2AuthorizationCodeGrantRequest;
 import org.springframework.security.oauth2.client.registration.ClientRegistration;
@@ -22,7 +18,6 @@ import org.springframework.security.oauth2.core.endpoint.OAuth2AccessTokenRespon
 import org.springframework.security.oauth2.core.endpoint.OAuth2AuthorizationExchange;
 import org.springframework.security.oauth2.core.endpoint.OAuth2AuthorizationResponse;
 import org.springframework.web.client.RestTemplate;
-import org.springframework.web.util.UriComponentsBuilder;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -83,47 +78,47 @@ public class CustomOAuth2AccessTokenResponseClient
      * dependencies.
      * 
      * <p>
-     * Configures a RestTemplate with buffering and logging capabilities for
-     * detailed troubleshooting and request tracing.
+     * Uses the global RestTemplate bean configured in WebConfig for consistent
+     * HTTP client behavior and proper method handling.
      * </p>
      * 
-     * @param jwtUtil JWT utility for generating client assertions and processing
-     *                tokens
+     * @param jwtUtil      JWT utility for generating client assertions and
+     *                     processing
+     *                     tokens
+     * @param restTemplate The global RestTemplate bean configured in WebConfig
      */
-    public CustomOAuth2AccessTokenResponseClient(JwtUtil jwtUtil) {
+    public CustomOAuth2AccessTokenResponseClient(JwtUtil jwtUtil, RestTemplate restTemplate) {
         this.jwtUtil = jwtUtil;
         this.objectMapper = new ObjectMapper();
+        this.restTemplate = restTemplate;
+    }
 
-        // Create RestTemplate with buffering enabled to allow multiple reads of the
-        // response body
-        SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
-        BufferingClientHttpRequestFactory bufferingRequestFactory = new BufferingClientHttpRequestFactory(
-                requestFactory);
+    /**
+     * Logs detailed information about the token exchange request.
+     * 
+     * @param requestBody The request body being sent to the token endpoint
+     * @param headers     The HTTP headers being sent
+     * @param tokenUri    The token endpoint URI
+     */
+    private void logTokenExchangeRequest(org.springframework.util.MultiValueMap<String, String> requestBody,
+            HttpHeaders headers, String tokenUri) {
+        logger.trace("[SCOTACCOUNT-TOKEN] ================ TOKEN EXCHANGE REQUEST DETAILS ================");
+        logger.trace("[SCOTACCOUNT-TOKEN] Token Endpoint: {}", tokenUri);
+        logger.trace("[SCOTACCOUNT-TOKEN] Request Headers: {}", headers);
+        logger.trace("[SCOTACCOUNT-TOKEN] Grant Type: {}", requestBody.getFirst("grant_type"));
+        logger.trace("[SCOTACCOUNT-TOKEN] Authorization Code: {}", requestBody.getFirst("code"));
+        logger.trace("[SCOTACCOUNT-TOKEN] Redirect URI: {}", requestBody.getFirst("redirect_uri"));
+        logger.trace("[SCOTACCOUNT-TOKEN] Code Verifier: {}", requestBody.getFirst("code_verifier"));
+        logger.trace("[SCOTACCOUNT-TOKEN] Client Assertion Type: {}", requestBody.getFirst("client_assertion_type"));
 
-        this.restTemplate = new RestTemplate(bufferingRequestFactory);
-
-        // Add logging interceptor for detailed request/response logging
-        ClientHttpRequestInterceptor loggingInterceptor = (request, body, execution) -> {
-            logger.trace("=========================== REQUEST ===========================");
-            logger.trace("URI: {}", request.getURI());
-            logger.trace("Method: {}", request.getMethod());
-            logger.trace("Headers: {}", request.getHeaders());
-            logger.trace("Request body: {}", new String(body, StandardCharsets.UTF_8));
-
-            var response = execution.execute(request, body);
-
-            logger.trace("========================== RESPONSE ==========================");
-            logger.trace("Status code: {}", response.getStatusCode());
-            logger.trace("Headers: {}", response.getHeaders());
-
-            byte[] responseBody = response.getBody().readAllBytes();
-            logger.trace("Response body: {}", new String(responseBody, StandardCharsets.UTF_8));
-            logger.trace("=============================================================");
-
-            return response;
-        };
-
-        this.restTemplate.setInterceptors(Collections.singletonList(loggingInterceptor));
+        String clientAssertion = requestBody.getFirst("client_assertion");
+        if (clientAssertion != null) {
+            logger.trace("[SCOTACCOUNT-TOKEN] Client Assertion (first 100 chars): {}...",
+                    clientAssertion.substring(0, Math.min(100, clientAssertion.length())));
+        } else {
+            logger.trace("[SCOTACCOUNT-TOKEN] Client Assertion: null");
+        }
+        logger.trace("[SCOTACCOUNT-TOKEN] =================================================================");
     }
 
     /**
@@ -189,38 +184,50 @@ public class CustomOAuth2AccessTokenResponseClient
         OAuth2AuthorizationResponse authorizationResponse = authorizationExchange.getAuthorizationResponse();
 
         String tokenUri = clientRegistration.getProviderDetails().getTokenUri();
-        logger.debug("Preparing token request to: {}", tokenUri);
+        logger.trace("[OIDC-FLOW] ================ TOKEN EXCHANGE STARTING ================");
+        logger.trace("[OIDC-FLOW] Preparing token request to: {}", tokenUri);
 
         try {
             // Generate client assertion JWT
             String clientAssertion = jwtUtil.createClientAssertion(
                     clientRegistration.getClientId(),
                     tokenUri);
-            logger.debug("Generated client assertion JWT");
+            logger.trace("[OIDC-FLOW] Generated client assertion JWT");
 
-            // Build URL with query parameters
-            UriComponentsBuilder builder = UriComponentsBuilder.fromUriString(tokenUri)
-                    .queryParam("grant_type", "authorization_code")
-                    .queryParam("code", authorizationResponse.getCode())
-                    .queryParam("redirect_uri", authorizationResponse.getRedirectUri())
-                    .queryParam("client_assertion_type", "urn:ietf:params:oauth:client-assertion-type:jwt-bearer")
-                    .queryParam("client_assertion", clientAssertion);
+            // Build request body as form-urlencoded (as per OAuth2 spec)
+            org.springframework.util.MultiValueMap<String, String> requestBody = new org.springframework.util.LinkedMultiValueMap<>();
+            requestBody.add("grant_type", "authorization_code");
+            requestBody.add("code", authorizationResponse.getCode());
+            requestBody.add("redirect_uri", authorizationResponse.getRedirectUri());
+            requestBody.add("client_assertion_type", "urn:ietf:params:oauth:client-assertion-type:jwt-bearer");
+            requestBody.add("client_assertion", clientAssertion);
 
             // Add code_verifier from the authorization request
             String codeVerifier = (String) authorizationExchange.getAuthorizationRequest()
                     .getAttributes().get("code_verifier");
-            builder.queryParam("code_verifier", codeVerifier);
+            requestBody.add("code_verifier", codeVerifier);
 
-            String finalUrl = builder.build().encode().toUriString();
-            logger.debug("Final token request URL: {}", finalUrl);
+            logger.trace("[OIDC-FLOW] === TOKEN REQUEST DEBUG ===");
+            logger.trace("[OIDC-FLOW] Token endpoint: {}", tokenUri);
+            logger.trace("[OIDC-FLOW] Authorization code: {}", authorizationResponse.getCode());
+            logger.trace("[OIDC-FLOW] Redirect URI: {}", authorizationResponse.getRedirectUri());
+            logger.trace("[OIDC-FLOW] Code verifier: {}", codeVerifier);
+            logger.trace("[OIDC-FLOW] Client assertion (truncated): {}...",
+                    clientAssertion.substring(0, Math.min(50, clientAssertion.length())));
+            logger.trace("[OIDC-FLOW] Request parameters: {}", requestBody);
 
             HttpHeaders headers = new HttpHeaders();
-            HttpEntity<?> request = new HttpEntity<>(headers);
+            headers.setContentType(org.springframework.http.MediaType.APPLICATION_FORM_URLENCODED);
+            HttpEntity<org.springframework.util.MultiValueMap<String, String>> request = new HttpEntity<>(requestBody,
+                    headers);
 
-            logger.debug("Sending token request");
+            // Log detailed token exchange request
+            logTokenExchangeRequest(requestBody, headers, tokenUri);
+
+            logger.trace("[OIDC-FLOW] === SENDING TOKEN REQUEST ===");
             @SuppressWarnings("unchecked")
             Map<String, Object> tokenResponse = restTemplate.exchange(
-                    finalUrl,
+                    tokenUri,
                     HttpMethod.POST,
                     request,
                     Map.class).getBody();
@@ -230,7 +237,8 @@ public class CustomOAuth2AccessTokenResponseClient
                 throw new RuntimeException("No response received from token endpoint");
             }
 
-            logger.debug("Successfully received token response");
+            logger.trace("[OIDC-FLOW] ================ TOKEN EXCHANGE SUCCESS ================");
+            logger.trace("[OIDC-FLOW] Successfully received token response");
 
             // Extract tokens from response
             String accessToken = (String) tokenResponse.get("access_token");
@@ -254,7 +262,13 @@ public class CustomOAuth2AccessTokenResponseClient
                     .build();
 
         } catch (Exception e) {
-            logger.error("Error exchanging code for token", e);
+            logger.trace("[OIDC-FLOW] ================ TOKEN EXCHANGE ERROR ================");
+            logger.trace("[OIDC-FLOW] Error type: {}", e.getClass().getSimpleName());
+            logger.trace("[OIDC-FLOW] Error message: {}", e.getMessage());
+            if (e.getCause() != null) {
+                logger.trace("[OIDC-FLOW] Cause: {}", e.getCause().getMessage());
+            }
+            logger.error("[OIDC-FLOW] Full error details:", e);
             throw new RuntimeException("Error exchanging code for token", e);
         }
     }

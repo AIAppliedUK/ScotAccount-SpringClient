@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org" lang="en">
-  <head>
+<head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Error - ScotAccount Client</title>
+    <title th:text="${errorTitle != null ? errorTitle : 'Error'}">Error - ScotAccount Client</title>
     <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -24,6 +24,12 @@
             margin: 0;
             padding: 0;
             background-color: var(--scot-gov-background);
+        }
+
+        h1, h2, h3, h4, h5 {
+            font-family: 'Open Sans', sans-serif;
+            font-weight: 700;
+            margin-top: 0;
         }
 
         .ds_site-header {
@@ -57,6 +63,7 @@
 
         .ds_layout__content {
             padding: 32px 0;
+            min-height: calc(100vh - 200px);
         }
 
         .error-container {
@@ -64,20 +71,118 @@
             border-radius: 8px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.05);
             padding: 32px;
-            margin-top: 32px;
+            margin-bottom: 32px;
         }
 
-        .error-title {
+        .error-header {
+            border-bottom: 3px solid var(--scot-gov-error);
+            padding-bottom: 24px;
+            margin-bottom: 32px;
+        }
+
+        .error-header h1 {
             color: var(--scot-gov-error);
-            font-size: 24px;
+            font-size: 28px;
+            margin-bottom: 12px;
+        }
+
+        .error-header p {
+            font-size: 16px;
+            color: var(--scot-gov-text);
+            margin: 0;
+        }
+
+        .section {
+            margin-bottom: 32px;
+        }
+
+        .section:last-of-type {
+            margin-bottom: 0;
+        }
+
+        .section-title {
+            color: var(--scot-gov-blue);
+            font-size: 20px;
             font-weight: 700;
             margin-bottom: 16px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid var(--scot-gov-light-blue);
         }
 
-        .error-message {
-            font-size: 16px;
-            margin-bottom: 24px;
+        .info-grid {
+            display: grid;
+            grid-template-columns: 220px 1fr;
+            gap: 16px;
+            background: var(--scot-gov-light-blue);
+            padding: 24px;
+            border-radius: 4px;
+            border: 1px solid var(--scot-gov-blue);
+        }
+
+        .info-label {
+            font-weight: 600;
             color: var(--scot-gov-text);
+            font-size: 15px;
+        }
+
+        .info-value {
+            color: var(--scot-gov-text);
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            word-break: break-word;
+        }
+
+        .cause-list, .steps-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .cause-item, .step-item {
+            background: white;
+            padding: 16px;
+            margin-bottom: 12px;
+            border-radius: 4px;
+            border: 1px solid var(--scot-gov-border);
+            border-left: 4px solid var(--scot-gov-blue);
+        }
+
+        .cause-item:last-child, .step-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .cause-title, .step-title {
+            font-weight: 600;
+            color: var(--scot-gov-blue);
+            margin-bottom: 6px;
+            font-size: 15px;
+        }
+
+        .cause-description, .step-description {
+            color: var(--scot-gov-text);
+            font-size: 14px;
+            line-height: 1.6;
+            margin: 0;
+        }
+
+        .technical-details {
+            background: #2d3748;
+            color: #e2e8f0;
+            padding: 20px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            overflow-x: auto;
+            line-height: 1.6;
+            border: 1px solid var(--scot-gov-border);
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 16px;
+            margin-top: 32px;
+            padding-top: 24px;
+            border-top: 2px solid var(--scot-gov-light-blue);
         }
 
         .ds_button {
@@ -103,6 +208,26 @@
             text-decoration: none;
         }
 
+        .ds_button--secondary {
+            background: white;
+            color: var(--scot-gov-blue);
+            border: 2px solid var(--scot-gov-blue);
+        }
+
+        .ds_button--secondary:hover {
+            background: var(--scot-gov-light-blue);
+            color: var(--scot-gov-dark-blue);
+        }
+
+        .timestamp {
+            text-align: center;
+            color: #666;
+            font-size: 14px;
+            margin-top: 24px;
+            padding-top: 24px;
+            border-top: 1px solid var(--scot-gov-border);
+        }
+
         .ds_site-footer {
             background: white;
             padding: 24px 0;
@@ -119,13 +244,25 @@
         }
 
         @media (max-width: 768px) {
+            .info-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .action-buttons {
+                flex-direction: column;
+            }
+
             .ds_wrapper {
                 padding: 0 16px;
             }
+
+            .error-container {
+                padding: 24px 16px;
+            }
         }
     </style>
-  </head>
-  <body>
+</head>
+<body>
     <header class="ds_site-header">
         <div class="ds_site-header__content">
             <h1 class="ds_site-header__title">ScotAccount Client</h1>
@@ -135,9 +272,76 @@
     <main class="ds_layout__content">
         <div class="ds_wrapper">
             <div class="error-container">
-                <h2 class="error-title">Something went wrong</h2>
-                <p class="error-message">We're sorry, but there was an error processing your request. Please try again later.</p>
-                <a href="/" class="ds_button">Return to Home</a>
+                <div class="error-header">
+                    <h1 th:text="${errorTitle != null ? errorTitle : 'Application Error'}">Error</h1>
+                    <p th:text="${errorSummary != null ? errorSummary : message}">An error occurred</p>
+                </div>
+                <!-- Diagnostic Information Section -->
+                <div class="section" th:if="${diagnosticInfo != null}">
+                    <h2 class="section-title">Diagnostic Information</h2>
+                    <div class="info-grid">
+                        <th:block th:each="entry : ${diagnosticInfo}">
+                            <div class="info-label" th:text="${entry.key}">Label</div>
+                            <div class="info-value" th:text="${entry.value}">Value</div>
+                        </th:block>
+                    </div>
+                </div>
+
+                <!-- Possible Causes Section -->
+                <div class="section" th:if="${possibleCauses != null}">
+                    <h2 class="section-title">Possible Causes</h2>
+                    <ul class="cause-list">
+                        <li class="cause-item" th:each="entry : ${possibleCauses}">
+                            <div class="cause-title" th:text="${entry.key}">Cause</div>
+                            <p class="cause-description" th:text="${entry.value}">Description</p>
+                        </li>
+                    </ul>
+                </div>
+
+                <!-- Troubleshooting Steps Section -->
+                <div class="section" th:if="${troubleshootingSteps != null}">
+                    <h2 class="section-title">Troubleshooting Steps</h2>
+                    <ul class="steps-list">
+                        <li class="step-item" th:each="entry : ${troubleshootingSteps}">
+                            <div class="step-title" th:text="${entry.key}">Step</div>
+                            <p class="step-description" th:text="${entry.value}">Description</p>
+                        </li>
+                    </ul>
+                </div>
+
+                <!-- Technical Details Section -->
+                <div class="section" th:if="${technicalDetails != null}">
+                    <h2 class="section-title">Technical Details</h2>
+                    <div class="technical-details" th:text="${technicalDetails}">Technical error message</div>
+                </div>
+
+                <!-- Generic Error Display -->
+                <div class="section" th:if="${diagnosticInfo == null}">
+                    <h2 class="section-title">Error Details</h2>
+                    <div class="info-grid">
+                        <div class="info-label">Status Code</div>
+                        <div class="info-value" th:text="${status}">500</div>
+
+                        <div class="info-label">Error Type</div>
+                        <div class="info-value" th:text="${error}">Internal Server Error</div>
+
+                        <th:block th:if="${message != null}">
+                            <div class="info-label">Message</div>
+                            <div class="info-value" th:text="${message}">Error message</div>
+                        </th:block>
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="action-buttons">
+                    <a href="/" class="ds_button">Return to Home</a>
+                    <a href="javascript:history.back()" class="ds_button ds_button--secondary">Go Back</a>
+                </div>
+
+                <!-- Timestamp -->
+                <div class="timestamp" th:if="${timestamp != null}">
+                    Error occurred at: <span th:text="${timestamp}">timestamp</span>
+                </div>
             </div>
         </div>
     </main>
@@ -147,5 +351,5 @@
             <p>Demo application for ScotAccount integration</p>
         </div>
     </footer>
-  </body>
-</html> 
+</body>
+</html>

@@ -8,7 +8,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.client.RestTemplate;
 
 @ExtendWith(MockitoExtension.class)
@@ -17,13 +16,14 @@ public class JwtUtilTest {
     @Mock
     private RestTemplate restTemplate;
 
+    @Mock
+    private ScotAccountProperties scotAccountProperties;
+
     private JwtUtil jwtUtil;
 
     @BeforeEach
     void setUp() {
-        jwtUtil = new JwtUtil();
-        // Only set the RestTemplate
-        ReflectionTestUtils.setField(jwtUtil, "restTemplate", restTemplate);
+        jwtUtil = new JwtUtil(scotAccountProperties, restTemplate);
     }
 
     @Test
@@ -34,7 +34,7 @@ public class JwtUtilTest {
     @Test
     void createJwtUtil_ShouldInitializeCorrectly() {
         // A basic test to verify the class can be initialized
-        JwtUtil util = new JwtUtil();
+        JwtUtil util = new JwtUtil(scotAccountProperties, restTemplate);
         assertNotNull(util);
     }
 
