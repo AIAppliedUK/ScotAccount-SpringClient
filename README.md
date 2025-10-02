@@ -22,7 +22,7 @@ Before running this application, ensure you have:
 
 - **Java 21** or higher installed
 - **Maven 3.6** or higher installed
-- **ScotAccount client credentials** (client ID and secret)
+- **ScotAccount client ID** (registered with ScotAccount)
 - **RSA or EC key pair** for JWT client assertions (ES256 or RS256)
 - **Access to ScotAccount integration environment**
 
@@ -104,15 +104,14 @@ Edit `src/main/resources/application.properties`:
 ```properties
 # ScotAccount Client Configuration
 spring.security.oauth2.client.registration.scotaccount.client-id=your-client-id
-spring.security.oauth2.client.registration.scotaccount.scope=openid scotaccount.address scotaccount.gpg45.medium scotaccount.email
+spring.security.oauth2.client.registration.scotaccount.scope=openid,scotaccount.address,scotaccount.email,scotaccount.gpg45.medium
 
 # ScotAccount Provider Configuration
-spring.security.oauth2.client.provider.scotaccount.issuer-uri=https://issuer.main.integration.scotaccount.service.gov.scot
+spring.security.oauth2.client.provider.scotaccount.issuer-uri=https://authz.integration.scotaccount.service.gov.scot
 spring.security.oauth2.client.provider.scotaccount.user-info-uri=https://issuer.main.integration.scotaccount.service.gov.scot/attributes/values
 
 # Application Configuration
-server.port=8080
-server.servlet.context-path=/
+server.port=8090
 ```
 
 ### 4. Build and Run
@@ -123,9 +122,6 @@ mvn clean install
 
 # Run the application using Spring Boot plugin
 mvn spring-boot:run
-
-# Alternative: Run using Maven profile
-mvn clean install -P run-app
 ```
 
 ### 5. Run Configurations
@@ -137,9 +133,6 @@ The project includes several convenient run configurations:
 ```bash
 # Run the main ScotAccount client application
 mvn spring-boot:run
-
-# Run with Maven profile
-mvn clean install -P run-app
 
 # Run with specific Spring profile
 mvn spring-boot:run -Dspring-boot.run.profiles=local
@@ -170,9 +163,9 @@ chmod +x genJWK.sh
 
 The project includes VS Code launch configurations in `.vscode/launch.json`:
 
-- **ScotAccount Client**: Run the main application
-- **Debug ScotAccount Client (Hot Reload)**: Run with hot reload for development
-- **JWKGenerator**: Run the JWK generator utility
+- **Launch ScotAccount Client**: Run the main application
+- **Debug ScotAccount Client**: Run with debugging enabled
+- **Launch ScotAccount Client (Test Profile)**: Run with test profile
 
 To use these configurations:
 
@@ -259,7 +252,7 @@ The application implements the OAuth2 authorization code flow with PKCE and JWT 
 
 ## Logout Flows
 
-The application supports three distinct logout mechanisms:
+The application supports two distinct logout mechanisms:
 
 ### 1. RP-Initiated Logout (Front-Channel)
 **Endpoint**: `/logout`
@@ -267,14 +260,15 @@ The application supports three distinct logout mechanisms:
 Standard OpenID Connect RP-initiated logout where the user explicitly logs out:
 
 ```
-POST /logout
+POST /logout  (or GET /logout)
 ```
 
 **Flow**:
 1. User clicks logout button
-2. Application invalidates local session
-3. Redirects user to ScotAccount's `end_session_endpoint`
-4. ScotAccount logs user out and redirects back to application
+2. Application invalidates local session and clears cookies
+3. Redirects user to ScotAccount's `end_session_endpoint` with `id_token_hint` and `post_logout_redirect_uri`
+4. ScotAccount logs user out and redirects back to `/logout/logged-out`
+5. Application redirects user to home page
 
 ### 2. Backchannel Logout (Server-to-Server)
 **Endpoint**: `/logout/backchannel` or `/logout/back-channel`
@@ -303,21 +297,6 @@ logout_token=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...
 - ✅ `events` claim contains `http://schemas.openid.net/event/backchannel-logout`
 - ✅ Either `sub` or `sid` claim present
 - ✅ `nonce` claim must NOT be present
-
-### 3. Application Logout (Local)
-**Endpoint**: `/logout/application`
-
-Local application logout without notifying ScotAccount:
-
-```
-POST /logout/application
-```
-
-**Flow**:
-1. Invalidates local session only
-2. Clears session cookies (JSESSIONID, XSRF-TOKEN)
-3. Redirects to home page
-4. User remains logged in to ScotAccount (SSO session active)
 
 ## Security Features
 
@@ -383,13 +362,9 @@ scotaccountclient/
 │   ├── templates/                           # Thymeleaf templates
 │   │   ├── index.html                      # Main application view
 │   │   └── error.html                      # Error page (Scottish Government styled)
-│   └── keys/                               # Cryptographic keys
-│       ├── ec_private_key.pem              # EC private key (ES256)
-│       ├── ec_public_key.pem               # EC public key
-│       ├── rsa_private_key.pem             # RSA private key (RS256)
-│       └── rsa_public_key.pem              # RSA public key
+│   └── keys/                               # Cryptographic keys directory (your keys go here - see setup guide)
 ├── genJWK.sh                               # Shell script for JWK generation
-└── docs/                                   # Documentation
+└── docs/                                   # Documentation (generated by mvn install)
     ├── diagrams/                           # Architecture diagrams
     └── javadoc/                            # API documentation
 ```
@@ -401,24 +376,20 @@ scotaccountclient/
 ```properties
 # Client Registration
 spring.security.oauth2.client.registration.scotaccount.client-id=your-client-id
-spring.security.oauth2.client.registration.scotaccount.client-secret=your-client-secret
 
 # Scopes for verified attributes
-spring.security.oauth2.client.registration.scotaccount.scope=openid scotaccount.address scotaccount.gpg45.medium scotaccount.email
+spring.security.oauth2.client.registration.scotaccount.scope=openid,scotaccount.address,scotaccount.email,scotaccount.gpg45.medium
 
 # ScotAccount Provider
-spring.security.oauth2.client.provider.scotaccount.issuer-uri=https://issuer.main.integration.scotaccount.service.gov.scot
+spring.security.oauth2.client.provider.scotaccount.issuer-uri=https://authz.integration.scotaccount.service.gov.scot
 spring.security.oauth2.client.provider.scotaccount.user-info-uri=https://issuer.main.integration.scotaccount.service.gov.scot/attributes/values
 ```
 
 ### Session Configuration
 
 ```properties
-# Session timeout (5 minutes)
-server.servlet.session.timeout=5m
-
-# Session management
-spring.session.timeout=5m
+# Session timeout (60 minutes)
+server.servlet.session.timeout=60m
 ```
 
 ### Logging Configuration
@@ -548,7 +519,7 @@ mvn test jacoco:report
 mvn clean package -DskipTests
 
 # Run production JAR
-java -jar target/scotaccountclient-1.0.0.jar
+java -jar target/scotaccountclient-1.3.0.jar
 ```
 
 ## Security Best Practices
@@ -625,11 +596,10 @@ mvn exec:java -Dexec.mainClass="scot.gov.scotaccountclient.JWKGenerator" \
 ### Logout Implementation
 
 #### LogoutController.java
-Three distinct logout flows with clear documentation:
+Two distinct logout flows with clear documentation:
 
-1. **RP-Initiated Logout** (`/logout`): Standard front-channel logout
+1. **RP-Initiated Logout** (`/logout`): Standard front-channel logout with redirect to ScotAccount
 2. **Backchannel Logout** (`/logout/backchannel`): OIDC specification compliant server-to-server logout
-3. **Application Logout** (`/logout/application`): Local session invalidation only
 
 **Backchannel Logout Validation**:
 - JWT signature verification
@@ -649,8 +619,8 @@ Provides user-friendly error pages with diagnostic information:
 
 ## Version History
 
-- **2.0.0**: Added EC key support (ES256), OIDC backchannel logout, JWK generator utility, improved error handling
-- **1.2.0**: Added attribute verification flow and GPG45 support
+- **1.3.0** (Current): Fixed post_logout_redirect_uri port handling for reverse proxy deployments, updated README accuracy
+- **1.2.0**: EC key support (ES256), OIDC backchannel logout, JWK generator utility, improved error handling, attribute verification flow, GPG45 support
 - **1.1.0**: Enhanced security features and PKCE implementation
 - **1.0.0**: Initial release with basic OAuth2/OIDC authentication
 

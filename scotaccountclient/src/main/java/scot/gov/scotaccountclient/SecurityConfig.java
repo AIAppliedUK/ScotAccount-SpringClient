@@ -7,10 +7,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.annotation.Order;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
-import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.security.oauth2.client.web.DefaultOAuth2AuthorizationRequestResolver;
 import org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequestCustomizers;
@@ -153,16 +153,17 @@ public class SecurityConfig {
         public AccessDeniedHandler accessDeniedHandler() {
                 return (request, response, accessDeniedException) -> {
                         String principal = request.getUserPrincipal() != null
-                                ? request.getUserPrincipal().getName()
-                                : "anonymous";
+                                        ? request.getUserPrincipal().getName()
+                                        : "anonymous";
                         logger.debug("Access denied for user '{}' attempting to access: {}",
-                                principal, request.getRequestURI());
+                                        principal, request.getRequestURI());
                         response.sendRedirect("/");
                 };
         }
 
         /**
-         * Custom authentication entry point that logs authentication failures without stack traces.
+         * Custom authentication entry point that logs authentication failures without
+         * stack traces.
          *
          * @return The configured AuthenticationEntryPoint
          */
@@ -170,13 +171,40 @@ public class SecurityConfig {
         public AuthenticationEntryPoint authenticationEntryPoint() {
                 return (request, response, authException) -> {
                         logger.debug("User not authenticated, redirecting to login from: {}",
-                                request.getRequestURI());
+                                        request.getRequestURI());
                         response.sendRedirect("/");
                 };
         }
 
         /**
-         * Configures the security filter chain with OAuth2 and JWT settings.
+         * Configures a stateless security filter chain specifically for backchannel
+         * logout endpoints.
+         * This filter chain has higher priority and prevents session
+         * creation/validation for server-to-server calls.
+         *
+         * @param http The HttpSecurity object to configure
+         * @return The configured SecurityFilterChain for backchannel logout
+         * @throws Exception if security configuration fails
+         */
+        @Bean
+        @Order(1)
+        public SecurityFilterChain backchannelLogoutFilterChain(HttpSecurity http) throws Exception {
+                http
+                                .securityMatcher("/logout/backchannel", "/logout/back-channel")
+                                .csrf(csrf -> csrf.disable()) // CSRF not needed for server-to-server calls
+                                .sessionManagement(session -> session
+                                                .sessionCreationPolicy(SessionCreationPolicy.STATELESS)) // No session
+                                                                                                         // for
+                                                                                                         // backchannel
+                                .authorizeHttpRequests(auth -> auth
+                                                .anyRequest().permitAll()); // Public endpoint
+
+                logger.debug("Backchannel logout filter chain configured with STATELESS session policy");
+                return http.build();
+        }
+
+        /**
+         * Configures the main security filter chain with OAuth2 and JWT settings.
          *
          * @param http         The HttpSecurity object to configure
          * @param restTemplate The global RestTemplate bean for HTTP requests
@@ -184,18 +212,16 @@ public class SecurityConfig {
          * @throws Exception if security configuration fails
          */
         @Bean
+        @Order(2)
         public SecurityFilterChain securityFilterChain(HttpSecurity http, RestTemplate restTemplate) throws Exception {
                 http
                                 .csrf(csrf -> csrf
                                                 .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
                                                 .ignoringRequestMatchers("/oauth2/authorization/**",
-                                                                "/login/oauth2/code/**",
-                                                                "/logout/backchannel",
-                                                                "/logout/back-channel"))
+                                                                "/login/oauth2/code/**"))
                                 .authorizeHttpRequests(auth -> auth
                                                 .requestMatchers("/", "/error", "/webjars/**", "/css/**", "/js/**",
-                                                                "/images/**", "/logout", "/test/**",
-                                                                "/logout/backchannel", "/logout/back-channel")
+                                                                "/images/**", "/logout", "/test/**")
                                                 .permitAll()
                                                 .anyRequest().authenticated())
                                 .exceptionHandling(exceptions -> exceptions

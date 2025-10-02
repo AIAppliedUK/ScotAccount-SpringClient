@@ -2,7 +2,6 @@ package scot.gov.scotaccountclient;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.security.KeyFactory;
 import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
@@ -40,23 +39,28 @@ import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 
 /**
- * Utility class for handling JWT operations in the ScotAccount client application.
+ * Utility class for handling JWT operations in the ScotAccount client
+ * application.
  *
- * <p>This class provides OIDC-compliant JWT handling with proper support for:</p>
+ * <p>
+ * This class provides OIDC-compliant JWT handling with proper support for:
+ * </p>
  * <ul>
- *   <li>EC (P-256/ES256) and RSA (RS256) key algorithms</li>
- *   <li>Client assertion JWT generation with proper kid header</li>
- *   <li>JWT validation using JWKS endpoint</li>
- *   <li>Public key caching for performance</li>
+ * <li>EC (P-256/ES256) and RSA (RS256) key algorithms</li>
+ * <li>Client assertion JWT generation with proper kid header</li>
+ * <li>JWT validation using JWKS endpoint</li>
+ * <li>Public key caching for performance</li>
  * </ul>
  *
- * <p><b>OIDC Compliance:</b></p>
+ * <p>
+ * <b>OIDC Compliance:</b>
+ * </p>
  * <ul>
- *   <li>Uses Nimbus JOSE+JWT for proper EC signature handling</li>
- *   <li>Includes 'kid' (key ID) in JWT header for JWK matching</li>
- *   <li>Supports both SEC1 and PKCS#8 EC key formats</li>
- *   <li>ES256 (ECDSA with P-256 and SHA-256) for EC keys</li>
- *   <li>RS256 (RSA with SHA-256) for RSA keys</li>
+ * <li>Uses Nimbus JOSE+JWT for proper EC signature handling</li>
+ * <li>Includes 'kid' (key ID) in JWT header for JWK matching</li>
+ * <li>Supports both SEC1 and PKCS#8 EC key formats</li>
+ * <li>ES256 (ECDSA with P-256 and SHA-256) for EC keys</li>
+ * <li>RS256 (RSA with SHA-256) for RSA keys</li>
  * </ul>
  */
 @Component
@@ -172,13 +176,16 @@ public class JwtUtil {
     }
 
     /**
-     * Creates a client assertion JWT for OAuth2 authentication using Nimbus JOSE+JWT.
+     * Creates a client assertion JWT for OAuth2 authentication using Nimbus
+     * JOSE+JWT.
      *
-     * <p><b>OIDC Compliance:</b></p>
+     * <p>
+     * <b>OIDC Compliance:</b>
+     * </p>
      * <ul>
-     *   <li>Includes 'kid' header for JWK identification</li>
-     *   <li>Uses ES256 for EC keys, RS256 for RSA keys</li>
-     *   <li>Proper signature generation via Nimbus JOSE+JWT</li>
+     * <li>Includes 'kid' header for JWK identification</li>
+     * <li>Uses ES256 for EC keys, RS256 for RSA keys</li>
+     * <li>Proper signature generation via Nimbus JOSE+JWT</li>
      * </ul>
      *
      * @param clientId      The OAuth2 client ID

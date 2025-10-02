@@ -5,7 +5,6 @@ import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
 import java.util.Arrays;
 import java.util.Base64;
-import java.util.Collections;
 import java.util.Enumeration;
 import java.util.List;
 import java.util.Map;
@@ -27,45 +26,57 @@ import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import io.jsonwebtoken.Claims;
-
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 
 /**
- * Controller handling all logout operations for the ScotAccount client application.
+ * Controller handling all logout operations for the ScotAccount client
+ * application.
  *
- * <p>This controller manages three distinct logout flows:</p>
+ * <p>
+ * This controller manages three distinct logout flows:
+ * </p>
  *
  * <h3>1. User-Initiated Front-Channel Logout</h3>
- * <p>Endpoints: GET/POST /logout</p>
+ * <p>
+ * Endpoints: GET/POST /logout
+ * </p>
  * <ul>
- *   <li>Triggered when user clicks "logout" button</li>
- *   <li>Clears local session and cookies</li>
- *   <li>Redirects to ScotAccount's end_session_endpoint for complete logout</li>
- *   <li>ScotAccount redirects back to /logout/logged-out when done</li>
+ * <li>Triggered when user clicks "logout" button</li>
+ * <li>Clears local session and cookies</li>
+ * <li>Redirects to ScotAccount's end_session_endpoint for complete logout</li>
+ * <li>ScotAccount redirects back to /logout/logged-out when done</li>
  * </ul>
  *
  * <h3>2. OIDC Back-Channel Logout</h3>
- * <p>Endpoint: POST /logout/backchannel</p>
+ * <p>
+ * Endpoint: POST /logout/backchannel
+ * </p>
  * <ul>
- *   <li>Called directly by ScotAccount Identity Provider</li>
- *   <li>Receives signed JWT logout_token</li>
- *   <li>Validates token signature and claims per OIDC spec</li>
- *   <li>Invalidates local session</li>
- *   <li>Returns HTTP 200 OK (no redirect)</li>
+ * <li>Called directly by ScotAccount Identity Provider</li>
+ * <li>Receives signed JWT logout_token</li>
+ * <li>Validates token signature and claims per OIDC spec</li>
+ * <li>Invalidates local session</li>
+ * <li>Returns HTTP 200 OK (no redirect)</li>
  * </ul>
  *
  * <h3>3. Post-Logout Callback</h3>
- * <p>Endpoint: GET /logout/logged-out</p>
+ * <p>
+ * Endpoint: GET /logout/logged-out
+ * </p>
  * <ul>
- *   <li>Called by ScotAccount after front-channel logout completes</li>
- *   <li>Simply redirects user back to home page</li>
+ * <li>Called by ScotAccount after front-channel logout completes</li>
+ * <li>Simply redirects user back to home page</li>
  * </ul>
  *
- * @see <a href="https://openid.net/specs/openid-connect-rpinitiated-1_0.html">OIDC RP-Initiated Logout</a>
- * @see <a href="https://openid.net/specs/openid-connect-backchannel-1_0.html">OIDC Back-Channel Logout</a>
+ * @see <a href=
+ *      "https://openid.net/specs/openid-connect-rpinitiated-1_0.html">OIDC
+ *      RP-Initiated Logout</a>
+ * @see <a href=
+ *      "https://openid.net/specs/openid-connect-backchannel-1_0.html">OIDC
+ *      Back-Channel Logout</a>
  */
 @Controller
 @RequestMapping("/logout")
@@ -104,8 +115,10 @@ public class LogoutController {
     /**
      * Handles user-initiated logout via POST request.
      *
-     * <p>This endpoint is typically called when the user clicks a logout button/link.
-     * Both GET and POST methods are supported for maximum compatibility.</p>
+     * <p>
+     * This endpoint is typically called when the user clicks a logout button/link.
+     * Both GET and POST methods are supported for maximum compatibility.
+     * </p>
      *
      * @param request  HTTP request
      * @param response HTTP response for setting cookies
@@ -119,8 +132,10 @@ public class LogoutController {
     /**
      * Handles user-initiated logout via GET request.
      *
-     * <p>This endpoint is typically called when the user clicks a logout button/link.
-     * Both GET and POST methods are supported for maximum compatibility.</p>
+     * <p>
+     * This endpoint is typically called when the user clicks a logout button/link.
+     * Both GET and POST methods are supported for maximum compatibility.
+     * </p>
      *
      * @param request  HTTP request
      * @param response HTTP response for setting cookies
@@ -134,9 +149,11 @@ public class LogoutController {
     /**
      * Callback endpoint after ScotAccount completes the logout process.
      *
-     * <p>ScotAccount redirects the user here after successfully logging them out
+     * <p>
+     * ScotAccount redirects the user here after successfully logging them out
      * at the Identity Provider level. This is the final step in the front-channel
-     * logout flow.</p>
+     * logout flow.
+     * </p>
      *
      * @param request HTTP request (may contain state parameter for validation)
      * @return Redirect to application home page
@@ -154,30 +171,36 @@ public class LogoutController {
     /**
      * Handles OIDC Back-Channel Logout requests from ScotAccount Identity Provider.
      *
-     * <p><b>OIDC Back-Channel Logout Specification Compliance:</b></p>
+     * <p>
+     * <b>OIDC Back-Channel Logout Specification Compliance:</b>
+     * </p>
      * <ul>
-     *   <li>Accepts POST with application/x-www-form-urlencoded body</li>
-     *   <li>Receives signed JWT in logout_token parameter</li>
-     *   <li>Validates JWT signature using JWKS endpoint</li>
-     *   <li>Validates all required JWT claims per spec</li>
-     *   <li>Returns HTTP 200 OK on success (no redirect)</li>
-     *   <li>Returns HTTP 400 Bad Request on validation failure</li>
-     *   <li>Sets Cache-Control: no-store header</li>
+     * <li>Accepts POST with application/x-www-form-urlencoded body</li>
+     * <li>Receives signed JWT in logout_token parameter</li>
+     * <li>Validates JWT signature using JWKS endpoint</li>
+     * <li>Validates all required JWT claims per spec</li>
+     * <li>Returns HTTP 200 OK on success (no redirect)</li>
+     * <li>Returns HTTP 400 Bad Request on validation failure</li>
+     * <li>Sets Cache-Control: no-store header</li>
      * </ul>
      *
-     * <p><b>Flow:</b></p>
+     * <p>
+     * <b>Flow:</b>
+     * </p>
      * <ol>
-     *   <li>ScotAccount sends POST with logout_token</li>
-     *   <li>Validate token parameter is present</li>
-     *   <li>Validate JWT signature and claims</li>
-     *   <li>Invalidate user's session</li>
-     *   <li>Return 200 OK</li>
+     * <li>ScotAccount sends POST with logout_token</li>
+     * <li>Validate token parameter is present</li>
+     * <li>Validate JWT signature and claims</li>
+     * <li>Invalidate user's session</li>
+     * <li>Return 200 OK</li>
      * </ol>
      *
      * @param request  HTTP request containing logout_token parameter
      * @param response HTTP response for setting headers
      * @return ResponseEntity with HTTP 200 OK or 400 Bad Request
-     * @see <a href="https://openid.net/specs/openid-connect-backchannel-1_0.html">OIDC Back-Channel Logout Spec</a>
+     * @see <a href=
+     *      "https://openid.net/specs/openid-connect-backchannel-1_0.html">OIDC
+     *      Back-Channel Logout Spec</a>
      */
     @PostMapping({ "/backchannel", "/back-channel" })
     @ResponseBody
@@ -219,13 +242,15 @@ public class LogoutController {
     /**
      * Performs the front-channel logout flow initiated by the user.
      *
-     * <p><b>Steps:</b></p>
+     * <p>
+     * <b>Steps:</b>
+     * </p>
      * <ol>
-     *   <li>Extract ID token from authenticated user session</li>
-     *   <li>Clear Spring Security context</li>
-     *   <li>Invalidate HTTP session</li>
-     *   <li>Clear application cookies</li>
-     *   <li>Redirect to ScotAccount's end_session_endpoint with ID token hint</li>
+     * <li>Extract ID token from authenticated user session</li>
+     * <li>Clear Spring Security context</li>
+     * <li>Invalidate HTTP session</li>
+     * <li>Clear application cookies</li>
+     * <li>Redirect to ScotAccount's end_session_endpoint with ID token hint</li>
      * </ol>
      *
      * @param request  HTTP request
@@ -256,7 +281,7 @@ public class LogoutController {
         } catch (Exception e) {
             logger.error("Error during front-channel logout: {}", e.getMessage(), e);
             return "redirect:/?error=logout_error&message=" +
-                   URLEncoder.encode(e.getMessage(), StandardCharsets.UTF_8);
+                    URLEncoder.encode(e.getMessage(), StandardCharsets.UTF_8);
         }
     }
 
@@ -274,7 +299,7 @@ public class LogoutController {
                 return oidcUser.getIdToken().getTokenValue();
             } else {
                 logger.debug("Principal is not OidcUser: {}",
-                           oauthToken.getPrincipal().getClass().getSimpleName());
+                        oauthToken.getPrincipal().getClass().getSimpleName());
             }
         } else {
             logger.debug("No OAuth2 authentication found");
@@ -339,11 +364,13 @@ public class LogoutController {
     /**
      * Builds the complete logout URL for ScotAccount's end_session_endpoint.
      *
-     * <p>Constructs URL with required parameters:</p>
+     * <p>
+     * Constructs URL with required parameters:
+     * </p>
      * <ul>
-     *   <li>id_token_hint - for identifying the user's session</li>
-     *   <li>post_logout_redirect_uri - where to redirect after logout</li>
-     *   <li>state - security parameter to prevent CSRF</li>
+     * <li>id_token_hint - for identifying the user's session</li>
+     * <li>post_logout_redirect_uri - where to redirect after logout</li>
+     * <li>state - security parameter to prevent CSRF</li>
      * </ul>
      *
      * @param request HTTP request for constructing callback URL
@@ -352,10 +379,20 @@ public class LogoutController {
      */
     private String buildScotAccountLogoutUrl(HttpServletRequest request, String idToken) {
         // Build the post-logout redirect URI
-        String postLogoutRedirectUri = String.format("%s://%s:%d/logout/logged-out",
-                request.getScheme(),
-                request.getServerName(),
-                request.getServerPort());
+        String scheme = request.getScheme();
+        String serverName = request.getServerName();
+        int serverPort = request.getServerPort();
+
+        // Only include port if it's not a standard port
+        boolean isStandardPort = (scheme.equals("http") && serverPort == 80) ||
+                                 (scheme.equals("https") && serverPort == 443);
+
+        String postLogoutRedirectUri;
+        if (isStandardPort) {
+            postLogoutRedirectUri = String.format("%s://%s/logout/logged-out", scheme, serverName);
+        } else {
+            postLogoutRedirectUri = String.format("%s://%s:%d/logout/logged-out", scheme, serverName, serverPort);
+        }
 
         // Generate secure state parameter
         String state = generateSecureState();
@@ -381,17 +418,20 @@ public class LogoutController {
     }
 
     /**
-     * Validates a logout token JWT according to OIDC Back-Channel Logout specification.
+     * Validates a logout token JWT according to OIDC Back-Channel Logout
+     * specification.
      *
-     * <p><b>Validation performed:</b></p>
+     * <p>
+     * <b>Validation performed:</b>
+     * </p>
      * <ol>
-     *   <li>JWT signature verification using JWKS</li>
-     *   <li>Issuer (iss) matches expected ScotAccount issuer</li>
-     *   <li>Audience (aud) contains this client's ID</li>
-     *   <li>Issued At (iat) claim is present</li>
-     *   <li>Events claim contains backchannel-logout event URI</li>
-     *   <li>Either subject (sub) or session ID (sid) is present</li>
-     *   <li>Nonce claim is NOT present (per spec requirement)</li>
+     * <li>JWT signature verification using JWKS</li>
+     * <li>Issuer (iss) matches expected ScotAccount issuer</li>
+     * <li>Audience (aud) contains this client's ID</li>
+     * <li>Issued At (iat) claim is present</li>
+     * <li>Events claim contains backchannel-logout event URI</li>
+     * <li>Either subject (sub) or session ID (sid) is present</li>
+     * <li>Nonce claim is NOT present (per spec requirement)</li>
      * </ol>
      *
      * @param logoutToken The logout token JWT string to validate
