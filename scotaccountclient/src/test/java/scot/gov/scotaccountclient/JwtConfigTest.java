@@ -36,7 +36,7 @@ class JwtConfigTest {
     @Test
     void testLoadPublicKeyAsEC() throws Exception {
         // Load the public key from the filesystem to get the actual EC key
-        String keyPath = "src/main/resources/keys/public.pem";
+        String keyPath = "src/main/resources/keys/ec_public_key.pem";
         String keyContent = new String(java.nio.file.Files.readAllBytes(java.nio.file.Paths.get(keyPath)),
                 StandardCharsets.UTF_8);
 
@@ -70,7 +70,7 @@ class JwtConfigTest {
     @Test
     void testCreateJwtDecoder() throws Exception {
         // Load the public key from the filesystem to get the actual EC key
-        String keyPath = "src/main/resources/keys/public.pem";
+        String keyPath = "src/main/resources/keys/ec_public_key.pem";
         String keyContent = new String(java.nio.file.Files.readAllBytes(java.nio.file.Paths.get(keyPath)),
                 StandardCharsets.UTF_8);
 
@@ -127,7 +127,7 @@ class JwtConfigTest {
     @Test
     void testDetectKeyTypeWithActualECKey() throws Exception {
         // Read the EC key directly from the filesystem
-        String keyPath = "src/main/resources/keys/public.pem";
+        String keyPath = "src/main/resources/keys/ec_public_key.pem";
         String keyContent = new String(java.nio.file.Files.readAllBytes(java.nio.file.Paths.get(keyPath)),
                 StandardCharsets.UTF_8);
 
@@ -164,7 +164,7 @@ class JwtConfigTest {
     @Test
     void testDebugKeyBytes() throws Exception {
         // Load the public key from the main resources using absolute path
-        ClassPathResource resource = new ClassPathResource("keys/public.pem");
+        ClassPathResource resource = new ClassPathResource("keys/ec_public_key.pem");
         String key = StreamUtils.copyToString(resource.getInputStream(), StandardCharsets.UTF_8)
                 .replace("-----BEGIN PUBLIC KEY-----", "")
                 .replace("-----END PUBLIC KEY-----", "")

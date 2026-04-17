@@ -34,14 +34,12 @@ import com.nimbusds.jose.util.Base64URL;
  * documentation.
  * </p>
  * 
- * <p>
- * Usage:
+ * <p>Usage:</p>
  * <ul>
  * <li>java JWKGenerator --file private-key.pem --use sig</li>
  * <li>java JWKGenerator --file ec-private-key.pem --use enc</li>
  * <li>java JWKGenerator --file rsa-private-key.pem --use sig --public-only</li>
  * </ul>
- * </p>
  * 
  * @author ScotAccount Team
  * @version 2.0
@@ -54,7 +52,7 @@ public class JWKGenerator {
      * @param args Command line arguments
      */
     public static void main(String[] args) {
-        if (args.length == 0) {
+        if (args.length == 0 || isHelpFlag(args[0])) {
             printUsage();
             return;
         }
@@ -65,8 +63,12 @@ public class JWKGenerator {
         } catch (Exception e) {
             System.err.println("Error converting key to JWK: " + e.getMessage());
             e.printStackTrace();
-            System.exit(1);
+            throw new RuntimeException(e);
         }
+    }
+
+    private static boolean isHelpFlag(String arg) {
+        return "--help".equals(arg) || "-h".equals(arg);
     }
 
     /**

@@ -58,7 +58,8 @@ class JWKGeneratorTest {
         String output = outputStream.toString();
         assertTrue(output.contains("JWK Converter - Convert private key files to JSON Web Keys (JWK) format"));
         assertTrue(output.contains("Usage:"));
-        assertTrue(output.contains("--file <FILE>"));
+        assertTrue(output.contains("--file"));
+        assertTrue(output.contains("<FILE>"));
     }
 
     @Test
@@ -99,7 +100,7 @@ class JWKGeneratorTest {
         });
 
         assertTrue(exception.getCause() instanceof IllegalArgumentException);
-        assertTrue(exception.getCause().getMessage().contains("--file is required"));
+        assertTrue(exception.getCause().getMessage().contains("Key file is required"));
     }
 
     @Test

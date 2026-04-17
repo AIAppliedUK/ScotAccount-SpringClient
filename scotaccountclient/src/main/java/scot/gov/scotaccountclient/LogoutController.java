@@ -39,7 +39,7 @@ import jakarta.servlet.http.HttpSession;
  * This controller manages three distinct logout flows:
  * </p>
  *
- * <h3>1. User-Initiated Front-Channel Logout</h3>
+ * <h2>1. User-Initiated Front-Channel Logout</h2>
  * <p>
  * Endpoints: GET/POST /logout
  * </p>
@@ -50,7 +50,7 @@ import jakarta.servlet.http.HttpSession;
  * <li>ScotAccount redirects back to /logout/logged-out when done</li>
  * </ul>
  *
- * <h3>2. OIDC Back-Channel Logout</h3>
+ * <h2>2. OIDC Back-Channel Logout</h2>
  * <p>
  * Endpoint: POST /logout/backchannel
  * </p>
@@ -62,7 +62,7 @@ import jakarta.servlet.http.HttpSession;
  * <li>Returns HTTP 200 OK (no redirect)</li>
  * </ul>
  *
- * <h3>3. Post-Logout Callback</h3>
+ * <h2>3. Post-Logout Callback</h2>
  * <p>
  * Endpoint: GET /logout/logged-out
  * </p>
