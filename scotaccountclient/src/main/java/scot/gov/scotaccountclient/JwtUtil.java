@@ -254,11 +254,11 @@ public class JwtUtil {
         String keyId = extractKeyId(jwt);
         PublicKey publicKey = loadPublicKeyFromJwks(keyId);
 
-        return Jwts.parserBuilder()
-                .setSigningKey(publicKey)
+        return Jwts.parser()
+                .verifyWith(publicKey)
                 .build()
-                .parseClaimsJws(jwt)
-                .getBody();
+                .parseSignedClaims(jwt)
+                .getPayload();
     }
 
     /**
